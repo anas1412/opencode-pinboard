@@ -88,7 +88,23 @@ rm -rf ~/.opentack
 
 ### Add a repo
 
-Click the **+** button in the sidebar and pick any local Git repository. OpenTack will detect the repo name and branch automatically.
+Click the **+** button in the sidebar. You have two options:
+
+**Local folder** — pick any local Git repository. OpenTack detects the repo name and branch automatically.
+
+**Clone from GitHub** — paste a git URL (SSH or HTTPS). OpenTack clones it to `~/.opentack/repos/` and adds it automatically.
+
+> **Private repos**: If cloning fails with a permission error, make sure you have SSH keys set up:
+> ```
+> ssh -T git@github.com          # test your SSH connection
+> ssh-add -l                      # list loaded keys
+> ssh-add ~/.ssh/id_ed25519       # add your key to the agent
+> ```
+> Or use an HTTPS URL with a personal access token:
+> ```
+> https://<username>:<token>@github.com/user/repo.git
+> ```
+> Create a token at https://github.com/settings/tokens.
 
 ### Create a ticket
 

@@ -155,10 +155,40 @@ export function registerRepoRoutes(app: FastifyInstance) {
         stdio: "pipe",
       });
     } catch (err) {
-      const stderr = (err as { stderr?: string }).stderr || "unknown error";
+      const stderr = (err as { stderr?: string }).stderr || "";
+
+      // Detect private-repo / auth errors and give actionable advice
+      const isPrivateRepo =
+        stderr.includes("Repository not found") ||
+        stderr.includes("Permission denied") ||
+        stderr.includes("Authentication failed") ||
+        stderr.includes("could not read Username") ||
+        stderr.includes("not permitted");
+
+      let hint = stderr.slice(0, 300);
+      if (isPrivateRepo) {
+        const isSsh = gitUrl.startsWith("git@");
+        if (isSsh) {
+          hint +=
+            "\n\nThis looks like a private repo. Make sure your SSH key is added to GitHub:\n" +
+            "  1. Check: ssh -T git@github.com\n" +
+            "  2. List keys: ssh-add -l\n" +
+            "  3. Add key to agent: ssh-add ~/.ssh/id_ed25519\n" +
+            "  4. Add key to GitHub: https://github.com/settings/keys\n" +
+            "\nOr use an HTTPS URL with a personal access token:\n" +
+            "  https://<username>:<token>@github.com/user/repo.git";
+        } else {
+          hint +=
+            "\n\nThis looks like a private repo. For HTTPS, use a personal access token:\n" +
+            "  https://<username>:<token>@github.com/user/repo.git\n" +
+            "\nCreate a token at: https://github.com/settings/tokens\n" +
+            "Then re-run with the token embedded in the URL.";
+        }
+      }
+
       return reply.status(400).send({
         error: "CLONE_FAILED",
-        message: `Failed to clone: ${stderr.slice(0, 300)}`,
+        message: hint,
       });
     }
 
