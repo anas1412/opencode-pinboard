@@ -5,6 +5,10 @@ import websocket from "@fastify/websocket";
 import path from "path";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { db } from "../db";
+import { registerRepoRoutes } from "./routes/repo";
+import { registerTicketRoutes } from "./routes/ticket";
+import { registerSessionRoutes } from "./routes/session";
+import { registerCostRoutes } from "./routes/cost";
 
 let _app: Awaited<ReturnType<typeof buildApp>> | null = null;
 
@@ -31,7 +35,10 @@ async function buildApp() {
   app.get("/api/health", async () => ({ status: "ok", version: "0.1.0" }));
 
   // ── API routes ───────────────────────────────────────────────────
-  // TODO: register route modules
+  registerRepoRoutes(app);
+  registerTicketRoutes(app);
+  registerSessionRoutes(app);
+  registerCostRoutes(app);
 
   // ── SPA fallback ─────────────────────────────────────────────────
   app.setNotFoundHandler((_req, reply) => {

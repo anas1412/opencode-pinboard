@@ -41,9 +41,9 @@ export const tickets = sqliteTable("ticket", {
   tags: text("tags").notNull().default("[]"), // JSON array
   notes: text("notes").notNull().default(""),
 
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
-  resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "number" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+  resolvedAt: integer("resolved_at", { mode: "number" }),
 });
 
 // ─── Session ──────────────────────────────────────────────────────────
@@ -73,8 +73,8 @@ export const sessions = sqliteTable("session", {
   totalTokens: integer("total_tokens").notNull().default(0),
   costUsd: real("cost_usd").notNull().default(0),
 
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  endedAt: integer("ended_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "number" }).notNull(),
+  endedAt: integer("ended_at", { mode: "number" }),
   durationMs: integer("duration_ms"),
 
   approved: integer("approved", { mode: "boolean" }), // null = pending
@@ -90,8 +90,8 @@ export const repos = sqliteTable("repo", {
   defaultBranch: text("default_branch").notNull().default("main"),
   envVars: text("env_vars").notNull().default("{}"), // JSON Record<string, string>
 
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "number" }).notNull(),
+  lastUsedAt: integer("last_used_at", { mode: "number" }),
 });
 
 // ─── CostRecord ───────────────────────────────────────────────────────
@@ -106,5 +106,5 @@ export const costRecords = sqliteTable("cost_record", {
   promptTokens: integer("prompt_tokens").notNull(),
   completionTokens: integer("completion_tokens").notNull(),
   costUsd: real("cost_usd").notNull(),
-  recordedAt: integer("recorded_at", { mode: "timestamp_ms" }).notNull(),
+  recordedAt: integer("recorded_at", { mode: "number" }).notNull(),
 });
