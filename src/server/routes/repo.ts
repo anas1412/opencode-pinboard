@@ -1,6 +1,9 @@
 import { execSync } from "child_process";
+import { existsSync } from "fs";
+import path from "path";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { db, schema } from "../../db";
 import { repoCreateSchema, repoUpdateSchema } from "../validators";
 
@@ -116,6 +119,99 @@ export function registerRepoRoutes(app: FastifyInstance) {
     await db.delete(schema.repos).where(eq(schema.repos.id, id));
     return reply.status(204).send();
   });
+
+  // Clone repo from a git URL (GitHub, etc.)
+  app.post("/api/repos/clone", async (req, reply) => {
+    const { gitUrl } = z
+      .object({ gitUrl: z.string().min(1, "Git URL is required") })
+      .parse(req.body);
+
+    const repoName = extractRepoName(gitUrl);
+    if (!repoName) {
+      return reply.status(400).send({
+        error: "INVALID_URL",
+        message: `Could not extract repo name from "${gitUrl}". Use a GitHub URL like git@github.com:user/repo.git or https://github.com/user/repo.git`,
+      });
+    }
+
+    const dataDir = process.env.OPENTACK_DB_PATH
+      ? path.dirname(process.env.OPENTACK_DB_PATH)
+      : path.join(process.env.HOME || "/home", ".opentack");
+    const cloneDest = path.join(dataDir, "repos", repoName);
+
+    // Check if already exists
+    if (existsSync(cloneDest)) {
+      return reply.status(409).send({
+        error: "ALREADY_CLONED",
+        message: `Repo already cloned at ${cloneDest}. Remove it first or add it manually.`,
+      });
+    }
+
+    // Clone
+    try {
+      app.log.info({ gitUrl, cloneDest }, "Cloning repo");
+      execSync(`git clone --depth 1 "${gitUrl}" "${cloneDest}"`, {
+        timeout: 120_000,
+        stdio: "pipe",
+      });
+    } catch (err) {
+      const stderr = (err as { stderr?: string }).stderr || "unknown error";
+      return reply.status(400).send({
+        error: "CLONE_FAILED",
+        message: `Failed to clone: ${stderr.slice(0, 300)}`,
+      });
+    }
+
+    // Auto-detect default branch
+    let defaultBranch = "main";
+    try {
+      const branch = execSync(
+        `git -C "${cloneDest}" symbolic-ref --short HEAD 2>/dev/null || git -C "${cloneDest}" rev-parse --abbrev-ref HEAD`,
+        { timeout: 3000, encoding: "utf-8" },
+      ).trim();
+      if (branch) defaultBranch = branch;
+    } catch {
+      // fall back
+    }
+
+    const id = crypto.randomUUID();
+    const repoRow = {
+      id,
+      name: repoName,
+      localPath: cloneDest,
+      defaultBranch,
+      envVars: "{}",
+      createdAt: Date.now(),
+      lastUsedAt: null,
+    };
+
+    await db.insert(schema.repos).values(repoRow);
+    app.log.info({ id, name: repoName, cloneDest }, "Repo cloned and added");
+
+    return { ...repoRow, envVars: {} };
+  });
+}
+
+/**
+ * Extract repo name from common git URL formats:
+ *   git@github.com:user/repo.git   → repo
+ *   https://github.com/user/repo   → repo
+ *   https://github.com/user/repo.git → repo
+ */
+function extractRepoName(gitUrl: string): string | null {
+  // SSH: git@github.com:user/repo.git
+  let m = gitUrl.match(/:([^\/]+)\.git$/);
+  if (m) return m[1];
+  // SSH without .git: git@github.com:user/repo
+  m = gitUrl.match(/:([^\/]+)$/);
+  if (m) return m[1];
+  // HTTPS: https://github.com/user/repo.git
+  m = gitUrl.match(/\/([^\/]+?)\.git$/);
+  if (m) return m[1];
+  // HTTPS without .git: https://github.com/user/repo
+  m = gitUrl.match(/\/([^\/]+?)$/);
+  if (m) return m[1];
+  return null;
 }
 
 function deserializeRepo(row: typeof schema.repos.$inferSelect) {

@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCreateRepo } from "../hooks/useRepos";
-import { X, Folder, CheckCircle, AlertCircle } from "lucide-react";
+import { X, Folder, CheckCircle, AlertCircle, Globe } from "lucide-react";
 
 const supportsNativePicker = "showDirectoryPicker" in window;
+
+type Mode = "local" | "clone";
 
 interface AddRepoModalProps {
   open: boolean;
@@ -10,10 +13,12 @@ interface AddRepoModalProps {
 }
 
 export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
+  const qc = useQueryClient();
   const createRepo = useCreateRepo();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pathInputRef = useRef<HTMLInputElement>(null);
 
+  const [mode, setMode] = useState<Mode>("local");
   const [name, setName] = useState("");
   const [localPath, setLocalPath] = useState("");
   const [defaultBranch, setDefaultBranch] = useState("main");
@@ -22,6 +27,10 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
   const [isGitRepo, setIsGitRepo] = useState<boolean | null>(null);
   const [picking, setPicking] = useState(false);
   const [showManual, setShowManual] = useState(false);
+
+  // Clone mode state
+  const [gitUrl, setGitUrl] = useState("");
+  const [cloning, setCloning] = useState(false);
 
   // Reset on open/close
   useEffect(() => {
@@ -33,6 +42,8 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
       setSelectedDir(null);
       setIsGitRepo(null);
       setShowManual(false);
+      setGitUrl("");
+      setMode("local");
     }
   }, [open]);
 
@@ -129,7 +140,36 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
     }
   };
 
+  const handleClone = async () => {
+    if (!gitUrl.trim()) return;
+    setCloning(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/repos/clone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gitUrl: gitUrl.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || `Server error (${res.status})`);
+      }
+      qc.invalidateQueries({ queryKey: ["repos"] });
+      onClose();
+    } catch (err) {
+      setError((err as Error).message || "Failed to clone repo");
+    }
+    setCloning(false);
+  };
+
   if (!open) return null;
+
+  const tabClass = (tab: Mode) =>
+    `flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+      mode === tab
+        ? "bg-zinc-700 text-white"
+        : "text-zinc-400 hover:text-zinc-200"
+    }`;
 
   return (
     <>
@@ -147,123 +187,183 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 rounded-md px-3 py-2">{error}</p>
-            )}
-
-            {/* Hidden input for webkitdirectory */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              // @ts-ignore — non-standard
-              webkitdirectory=""
-              className="hidden"
-              onChange={handleFileInput}
-            />
-
-            {showManual ? (
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                  Repo path
-                </label>
-                <input
-                  ref={pathInputRef}
-                  type="text"
-                  placeholder="/home/user/projects/my-project"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleManualPath();
-                  }}
-                />
-                <div className="flex gap-3 mt-2">
-                  <button
-                    type="button"
-                    onClick={handleManualPath}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Use this path
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowManual(false)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                  >
-                    Pick a folder
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <button
-                  type="button"
-                  onClick={supportsNativePicker ? handleNativePicker : handleWebkitPicker}
-                  disabled={picking}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-8 rounded-lg border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50 transition-colors cursor-pointer"
-                >
-                  <Folder size={24} />
-                  <span className="text-sm">
-                    {picking ? (
-                      "Opening..."
-                    ) : selectedDir ? (
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium text-white">{selectedDir}</span>
-                        {isGitRepo === true && (
-                          <span className="flex items-center gap-1 text-xs text-green-400">
-                            <CheckCircle size={12} /> git repo
-                          </span>
-                        )}
-                        {isGitRepo === false && (
-                          <span className="flex items-center gap-1 text-xs text-amber-400">
-                            <AlertCircle size={12} /> not a git repo
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      "Choose a folder..."
-                    )}
-                  </span>
-                </button>
-                {!selectedDir && (
-                  <button
-                    type="button"
-                    onClick={() => setShowManual(true)}
-                    className="mt-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                  >
-                    Or type a path
-                  </button>
-                )}
-              </div>
-            )}
-
-            {selectedDir && (
-              <div className="space-y-1 text-xs text-zinc-500 bg-zinc-800/50 rounded-md px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-zinc-600 w-16">Name:</span>
-                  <span className="text-zinc-300 font-medium">{name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-zinc-600 w-16">Branch:</span>
-                  <span className="text-zinc-300 font-mono">{defaultBranch}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
+            {/* Mode tabs */}
+            <div className="flex gap-2 bg-zinc-800 rounded-lg p-1">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                onClick={() => setMode("local")}
+                className={`${tabClass("local")} flex items-center justify-center gap-1.5`}
               >
-                Cancel
+                <Folder size={12} />
+                Local folder
               </button>
               <button
-                type="submit"
-                disabled={!selectedDir || createRepo.isPending}
-                className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                type="button"
+                onClick={() => setMode("clone")}
+                className={`${tabClass("clone")} flex items-center justify-center gap-1.5`}
               >
-                {createRepo.isPending ? "Adding..." : "Add repo"}
+                <Globe size={12} />
+                Clone from GitHub
               </button>
             </div>
+
+            {error && (
+              <p className="text-xs text-red-400 bg-red-500/10 rounded-md px-3 py-2 break-words">{error}</p>
+            )}
+
+            {mode === "clone" ? (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                    Git URL
+                  </label>
+                  <input
+                    type="text"
+                    value={gitUrl}
+                    onChange={(e) => setGitUrl(e.target.value)}
+                    placeholder="git@github.com:user/repo.git"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1.5">
+                    Supports SSH (<code className="text-zinc-400">git@github.com:user/repo.git</code>) and HTTPS URLs.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClone}
+                    disabled={!gitUrl.trim() || cloning}
+                    className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {cloning ? "Cloning..." : "Clone & add"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Hidden input for webkitdirectory */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  // @ts-ignore — non-standard
+                  webkitdirectory=""
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
+
+                {showManual ? (
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                      Repo path
+                    </label>
+                    <input
+                      ref={pathInputRef}
+                      type="text"
+                      placeholder="/home/user/projects/my-project"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleManualPath();
+                      }}
+                    />
+                    <div className="flex gap-3 mt-2">
+                      <button
+                        type="button"
+                        onClick={handleManualPath}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        Use this path
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowManual(false)}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        Pick a folder
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={supportsNativePicker ? handleNativePicker : handleWebkitPicker}
+                      disabled={picking}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-8 rounded-lg border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      <Folder size={24} />
+                      <span className="text-sm">
+                        {picking ? (
+                          "Opening..."
+                        ) : selectedDir ? (
+                          <span className="flex items-center gap-2">
+                            <span className="font-medium text-white">{selectedDir}</span>
+                            {isGitRepo === true && (
+                              <span className="flex items-center gap-1 text-xs text-green-400">
+                                <CheckCircle size={12} /> git repo
+                              </span>
+                            )}
+                            {isGitRepo === false && (
+                              <span className="flex items-center gap-1 text-xs text-amber-400">
+                                <AlertCircle size={12} /> not a git repo
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          "Choose a folder..."
+                        )}
+                      </span>
+                    </button>
+                    {!selectedDir && (
+                      <button
+                        type="button"
+                        onClick={() => setShowManual(true)}
+                        className="mt-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        Or type a path
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {selectedDir && (
+                  <div className="space-y-1 text-xs text-zinc-500 bg-zinc-800/50 rounded-md px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-600 w-16">Name:</span>
+                      <span className="text-zinc-300 font-medium">{name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-600 w-16">Branch:</span>
+                      <span className="text-zinc-300 font-mono">{defaultBranch}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!selectedDir || createRepo.isPending}
+                    className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {createRepo.isPending ? "Adding..." : "Add repo"}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         </div>
       </div>
