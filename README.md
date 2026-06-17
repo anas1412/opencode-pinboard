@@ -4,7 +4,7 @@
 
 OpenTrack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anas1412/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
 
-![screenshot](https://github.com/anas1412/opentrack/raw/main/docs/screenshot.png)
+![screenshot](https://github.com/anas1412/opentack/raw/main/docs/screenshot.png)
 
 ## Why?
 
@@ -38,15 +38,15 @@ When you're done, stop the session. Want to pick it back up later? Start a new s
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anas1412/opentrack/main/opentrack.sh | bash
+curl -fsSL https://raw.githubusercontent.com/anas1412/opentack/main/opentack.sh | bash
 ```
 
 Or do it manually:
 
 ```bash
 # Clone the repo
-git clone https://github.com/anas1412/opentrack.git
-cd opentrack
+git clone https://github.com/anas1412/opentack.git
+cd opentack
 
 # Install dependencies
 bun install
@@ -69,7 +69,7 @@ Open **http://localhost:3000** in your browser.
 ### Update
 
 ```bash
-# From the opentrack directory:
+# From the opentack directory:
 git pull
 bun install
 bun run db:migrate
@@ -79,11 +79,11 @@ bun run build
 ### Uninstall
 
 ```bash
-# From the opentrack directory:
+# From the opentack directory:
 # (keeps bun and opencode, only removes OpenTrack)
 cd ..
-rm -rf opentrack
-rm -rf ~/.opentrack
+rm -rf opentack
+rm -rf ~/.opentack
 ```
 
 ### Add a repo
