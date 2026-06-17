@@ -1,8 +1,9 @@
 import { useAppStore } from "./store/app";
 import Sidebar from "./components/Sidebar";
 import TicketList from "./components/TicketList";
+import KanbanBoard from "./components/KanbanBoard";
 import TicketCreate from "./components/TicketCreate";
-import { LayoutDashboard, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 export default function App() {
   const { view, setView, setCreateOpen } = useAppStore();
@@ -30,13 +31,7 @@ export default function App() {
 
         <div className="flex-1 overflow-auto p-6">
           {view === "list" && <TicketList />}
-          {view === "kanban" && (
-            <div className="text-center text-zinc-500 mt-20">
-              <LayoutDashboard size={32} className="mx-auto mb-3 text-zinc-700" />
-              <p className="text-lg">Board view coming soon</p>
-              <p className="text-sm mt-1">Drag and drop tickets across status columns</p>
-            </div>
-          )}
+          {view === "kanban" && <KanbanBoard />}
           {view === "settings" && (
             <div className="max-w-lg mx-auto text-zinc-500">
               <p className="text-lg text-zinc-300 font-medium">Settings</p>
