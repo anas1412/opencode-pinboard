@@ -35,7 +35,13 @@ When you're done, stop the session. Want to pick it back up later? Start a new s
 - [Bun](https://bun.sh) (JavaScript runtime)
 - [opencode](https://github.com/anas1412/opencode) (the AI coding agent)
 
-### Install & run
+### Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anas1412/opentrack/main/opentrack.sh | bash
+```
+
+Or do it manually:
 
 ```bash
 # Clone the repo
@@ -48,11 +54,37 @@ bun install
 # Run database migrations
 bun run db:migrate
 
-# Start the server
+# Build the frontend
+bun run build
+```
+
+### Run
+
+```bash
 bun run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Open **http://localhost:3000** in your browser.
+
+### Update
+
+```bash
+# From the opentrack directory:
+git pull
+bun install
+bun run db:migrate
+bun run build
+```
+
+### Uninstall
+
+```bash
+# From the opentrack directory:
+# (keeps bun and opencode, only removes OpenTrack)
+cd ..
+rm -rf opentrack
+rm -rf ~/.opentrack
+```
 
 ### Add a repo
 
@@ -70,7 +102,7 @@ Click **Start session**. OpenTrack will launch opencode's web UI in the right pa
 
 | Command | What it does |
 |---|---|
-| `bun run dev` | Start the dev server (port 3000) + Vite frontend (port 5173) |
+| `bun run dev` | Start the server (default port 3000) |
 | `bun run build` | Build everything for production |
 | `bun run db:migrate` | Apply database migrations |
 | `bun run typecheck` | Type-check the codebase |
