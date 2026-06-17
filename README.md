@@ -1,8 +1,8 @@
-# OpenTrack
+# OpenTack
 
 **Track your opencode work like a pro — without leaving your browser.**
 
-OpenTrack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anas1412/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
+OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anas1412/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
 
 ![screenshot](https://github.com/anas1412/opentack/raw/main/docs/screenshot.png)
 
@@ -14,15 +14,15 @@ opencode is great at what it does — it's an AI coding agent that runs in your 
 - What was I doing in that session yesterday?
 - How much did that feature cost in API tokens?
 
-OpenTrack gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local AI coding sessions — but without the setup, the cloud, or the complexity.
+OpenTack gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local AI coding sessions — but without the setup, the cloud, or the complexity.
 
 ## How it works
 
-OpenTrack runs entirely on your machine. Nothing leaves your computer.
+OpenTack runs entirely on your machine. Nothing leaves your computer.
 
-1. **You add repos** — point OpenTrack at any local Git repo
+1. **You add repos** — point OpenTack at any local Git repo
 2. **You create tickets** — each ticket is a task or feature you want to work on
-3. **You start a session** — OpenTrack fires up opencode's web UI inside your browser, linked to that ticket
+3. **You start a session** — OpenTack fires up opencode's web UI inside your browser, linked to that ticket
 4. **You code** — talk to opencode through its own interface, right in the panel next to your ticket
 5. **You track** — see your active sessions, weekly costs, and history all in one place
 
@@ -80,7 +80,7 @@ bun run build
 
 ```bash
 # From the opentack directory:
-# (keeps bun and opencode, only removes OpenTrack)
+# (keeps bun and opencode, only removes OpenTack)
 cd ..
 rm -rf opentack
 rm -rf ~/.opentack
@@ -88,7 +88,7 @@ rm -rf ~/.opentack
 
 ### Add a repo
 
-Click the **+** button in the sidebar and pick any local Git repository. OpenTrack will detect the repo name and branch automatically.
+Click the **+** button in the sidebar and pick any local Git repository. OpenTack will detect the repo name and branch automatically.
 
 ### Create a ticket
 
@@ -96,7 +96,7 @@ Click **New ticket**, give it a title and description, and assign it to a repo.
 
 ### Start working
 
-Click **Start session**. OpenTrack will launch opencode's web UI in the right panel. Every message you send is saved to the ticket's session history.
+Click **Start session**. OpenTack will launch opencode's web UI in the right panel. Every message you send is saved to the ticket's session history.
 
 ## Commands
 
