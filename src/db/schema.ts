@@ -61,6 +61,9 @@ export const sessions = sqliteTable("session", {
   branch: text("branch").notNull(),
   initialPrompt: text("initial_prompt").notNull(),
 
+  // opencode's session ID (ses_xxx) — when null, we haven't created one yet
+  opencodeSessionId: text("opencode_session_id"),
+
   transcript: text("transcript").notNull().default("[]"), // JSON TranscriptEntry[]
 
   diff: text("diff").notNull().default("[]"), // JSON FileDiff[]

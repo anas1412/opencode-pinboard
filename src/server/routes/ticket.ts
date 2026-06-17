@@ -9,10 +9,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
     const input = ticketCreateSchema.parse(req.body);
     const id = crypto.randomUUID();
 
-    // Resolve repo for branch info
-    const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, input.repoId));
-    if (!repo) return reply.status(404).send({ error: "NOT_FOUND", message: "Repo not found" });
-
+    // Generate display branch name from title (no git ops performed)
     const slug = input.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -29,7 +26,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
       category: input.category,
       repoId: input.repoId,
       branch,
-      baseBranch: repo.defaultBranch,
+      baseBranch: "",
       sessionIds: "[]",
       activeSessionId: null,
       filesChanged: "[]",
@@ -118,6 +115,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
     await db.delete(schema.tickets).where(eq(schema.tickets.id, id));
     return reply.status(204).send();
   });
+
 }
 
 function deserializeTicket(row: typeof schema.tickets.$inferSelect) {

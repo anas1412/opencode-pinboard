@@ -1,89 +1,129 @@
+import { useState } from "react";
 import { useAppStore } from "../store/app";
-import { useRepos } from "../hooks/useRepos";
-import { LayoutDashboard, ListTodo, Settings, Plus, GitBranch } from "lucide-react";
+import { useRepos, useDeleteRepo } from "../hooks/useRepos";
+import { useTickets } from "../hooks/useTickets";
+import { useCostSummary } from "../hooks/useCostSummary";
+import AddRepoModal from "./AddRepoModal";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight } from "lucide-react";
 
 export default function Sidebar() {
-  const { view, setView, setCreateOpen } = useAppStore();
+  const { selectedRepoId, setSelectedRepoId, setSelectedTicketId, setView } = useAppStore();
   const { data: repos } = useRepos();
+  const { data: ticketsData } = useTickets();
+  const { data: costs } = useCostSummary();
+  const deleteRepo = useDeleteRepo();
+  const [addRepoOpen, setAddRepoOpen] = useState(false);
+
+  const activeTickets =
+    ticketsData?.tickets?.filter((t) => t.activeSessionId !== null) ?? [];
 
   return (
     <aside className="w-[220px] min-w-[220px] border-r border-zinc-800 flex flex-col bg-zinc-950">
       <div className="p-4">
-        <h1 className="text-lg font-bold tracking-tight text-white">OpenDev</h1>
+        <h1 className="text-lg font-bold tracking-tight text-white">OpenTack</h1>
       </div>
 
-      <nav className="flex-1 px-2 space-y-1">
-        <button
-          onClick={() => setView("list")}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-            view === "list"
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          <ListTodo size={16} />
-          List
-        </button>
-        <button
-          onClick={() => setView("kanban")}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-            view === "kanban"
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          <LayoutDashboard size={16} />
-          Kanban
-        </button>
-      </nav>
+      {/* Active sessions section — scrollable */}
+      <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0">
+        <div className="px-2 py-2">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Active</p>
+        </div>
+        {activeTickets.map((ticket) => (
+          <button
+            key={ticket.id}
+            onClick={() => {
+              setSelectedTicketId(ticket.id);
+              setView("list");
+            }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-md transition-colors text-left"
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-green-400" />
+            <span className="truncate flex-1 min-w-0 text-left">{ticket.title}</span>
+            <ArrowRight size={12} className="shrink-0 text-zinc-600" />
+          </button>
+        ))}
+        {activeTickets.length === 0 && (
+          <p className="px-3 py-1.5 text-xs text-zinc-600 italic">None running</p>
+        )}
+      </div>
 
       {/* Repos section */}
-      <div className="px-4 py-2">
+      <div className="flex items-center justify-between px-4 py-2">
         <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Repos</p>
+        <button
+          onClick={() => setAddRepoOpen(true)}
+          className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+          title="Add repo"
+        >
+          <FolderPlus size={14} />
+        </button>
       </div>
-      <div className="px-2 space-y-0.5">
+      <div className="px-2 space-y-0.5 overflow-auto max-h-[40vh]">
+        <button
+          onClick={() => {
+            setSelectedRepoId(null);
+            setSelectedTicketId(null);
+          }}
+          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
+            selectedRepoId === null
+              ? "bg-zinc-800 text-white"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <Layers size={14} className="shrink-0" />
+          <span className="truncate">All repos</span>
+        </button>
+
         {repos?.map((repo) => (
-          <div
-            key={repo.id}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400"
-          >
-            <GitBranch size={12} className="text-zinc-600" />
-            <span className="truncate">{repo.name}</span>
+          <div key={repo.id} className="group flex items-center">
+            <button
+              onClick={() => {
+                setSelectedRepoId(repo.id);
+                setSelectedTicketId(null);
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors flex-1 min-w-0 ${
+                selectedRepoId === repo.id
+                  ? "bg-zinc-800 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <GitBranch size={14} className="shrink-0" />
+              <span className="truncate">{repo.name}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (confirm(`Remove "${repo.name}"?`)) deleteRepo.mutate(repo.id);
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+              title="Remove repo"
+            >
+              <Trash2 size={11} />
+            </button>
           </div>
         ))}
         {(!repos || repos.length === 0) && (
-          <p className="px-3 py-1.5 text-xs text-zinc-600 italic">No repos added</p>
+          <p className="px-3 py-2 text-xs text-zinc-600 italic">No repos added</p>
         )}
       </div>
 
       {/* Weekly cost */}
       <div className="px-4 py-3 border-t border-zinc-800 mt-auto">
         <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">This week</p>
-        <p className="text-sm text-zinc-300 font-mono mt-1">$0.00</p>
-        <p className="text-xs text-zinc-600 font-mono">0 tokens</p>
+        <p className="text-sm text-zinc-300 font-mono mt-1">
+          {costs ? `$${costs.weekTotalUsd.toFixed(2)}` : "—"}
+        </p>
+        <p className="text-xs text-zinc-600 font-mono">
+          {costs ? `${costs.weekTotalTokens.toLocaleString()} tokens` : "—"}
+        </p>
+        {costs && costs.sessionCount > 0 && (
+          <p className="text-[11px] text-zinc-700 font-mono mt-0.5">
+            {costs.sessionCount} session{costs.sessionCount !== 1 ? "s" : ""}
+            {costs.ticketCount > 0 && ` · ${costs.ticketCount} ticket${costs.ticketCount !== 1 ? "s" : ""}`}
+          </p>
+        )}
       </div>
 
-      {/* Actions */}
-      <div className="p-2 border-t border-zinc-800 space-y-1">
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-        >
-          <Plus size={16} />
-          New ticket
-        </button>
-        <button
-          onClick={() => setView("settings")}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-            view === "settings"
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          <Settings size={16} />
-          Settings
-        </button>
-      </div>
+      <AddRepoModal open={addRepoOpen} onClose={() => setAddRepoOpen(false)} />
     </aside>
   );
 }

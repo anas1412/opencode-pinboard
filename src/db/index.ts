@@ -4,8 +4,8 @@ import { mkdirSync } from "fs";
 import * as schema from "./schema";
 
 const DB_PATH =
-  process.env.OPENDEV_DB_PATH ||
-  `${process.env.HOME}/.opendev/db.sqlite`;
+  process.env.OPENTACK_DB_PATH ||
+  `${process.env.HOME}/.opentack/db.sqlite`;
 
 // Ensure parent directory exists
 const dir = DB_PATH.substring(0, DB_PATH.lastIndexOf("/"));

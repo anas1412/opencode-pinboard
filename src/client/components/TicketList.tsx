@@ -1,7 +1,9 @@
-import { useTickets } from "../hooks/useTickets";
+import { useState } from "react";
+import { useTickets, useDeleteTicket } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
 import { useAppStore } from "../store/app";
 import type { Ticket } from "../../shared/types";
+import { Trash2, X, Check } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-500/20 text-blue-400",
@@ -36,10 +38,16 @@ function timeAgo(ts: number): string {
   return `${days}d ago`;
 }
 
-export default function TicketList() {
-  const { data, isLoading, isError, error } = useTickets();
+interface TicketListProps {
+  repoId?: string;
+}
+
+export default function TicketList({ repoId }: TicketListProps) {
+  const { data, isLoading, isError, error } = useTickets({ repoId });
   const { data: repos } = useRepos();
   const { setSelectedTicketId } = useAppStore();
+  const deleteTicket = useDeleteTicket();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const repoMap = new Map(repos?.map((r) => [r.id, r.name]) ?? []);
 
@@ -82,6 +90,12 @@ export default function TicketList() {
     );
   }
 
+  async function handleDelete(e: React.MouseEvent, ticketId: string) {
+    e.stopPropagation();
+    await deleteTicket.mutateAsync(ticketId);
+    setDeletingId(null);
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -92,7 +106,8 @@ export default function TicketList() {
             <th className="pb-3 pr-4 font-medium">Repo</th>
             <th className="pb-3 pr-4 font-medium">Category</th>
             <th className="pb-3 pr-4 font-medium text-right">Cost</th>
-            <th className="pb-3 font-medium text-right">Updated</th>
+            <th className="pb-3 pr-2 font-medium text-right">Updated</th>
+            <th className="pb-3 w-8" />
           </tr>
         </thead>
         <tbody>
@@ -100,7 +115,7 @@ export default function TicketList() {
             <tr
               key={ticket.id}
               onClick={() => setSelectedTicketId(ticket.id)}
-              className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors"
+              className="border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors group"
             >
               <td className="py-3 pr-4">
                 <span
@@ -119,8 +134,33 @@ export default function TicketList() {
               <td className="py-3 pr-4 text-right font-mono text-zinc-300">
                 {formatCost(ticket.totalCostUsd)}
               </td>
-              <td className="py-3 text-right text-zinc-500">
+              <td className="py-3 pr-2 text-right text-zinc-500">
                 {timeAgo(ticket.updatedAt)}
+              </td>
+              <td className="py-3">
+                {deletingId === ticket.id ? (
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={(e) => handleDelete(e, ticket.id)}
+                      className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Check size={13} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeletingId(null); }}
+                      className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeletingId(ticket.id); }}
+                    className="p-1 rounded text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}

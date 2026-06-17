@@ -16,10 +16,12 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  });
+  const { headers: optHeaders, ...rest } = options;
+  const headers: Record<string, string> = { ...(optHeaders as Record<string, string> | undefined) };
+  // Only set Content-Type when there's a body (avoids Fastify "empty body" errors)
+  if (rest.body) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(`${BASE}${path}`, { headers, ...rest });
 
   if (res.status === 204) return undefined as T;
 

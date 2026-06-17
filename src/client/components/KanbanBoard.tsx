@@ -54,8 +54,12 @@ function TicketCard({
   );
 }
 
-export default function KanbanBoard() {
-  const { data, isLoading, isError } = useTickets();
+interface KanbanBoardProps {
+  repoId?: string;
+}
+
+export default function KanbanBoard({ repoId }: KanbanBoardProps) {
+  const { data, isLoading, isError } = useTickets({ repoId });
   const { data: repos } = useRepos();
   const { setSelectedTicketId } = useAppStore();
 

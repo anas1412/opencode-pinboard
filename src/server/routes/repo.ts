@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import type { FastifyInstance } from "fastify";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db";
@@ -9,18 +10,71 @@ export function registerRepoRoutes(app: FastifyInstance) {
     const input = repoCreateSchema.parse(req.body);
     const id = crypto.randomUUID();
 
-    const repo = {
+    // Auto-discover path if not provided
+    let localPath = input.localPath;
+    let defaultBranch = input.defaultBranch;
+    if (!localPath) {
+      try {
+        const home = process.env.HOME || "/home";
+        const result = execSync(
+          `find "${home}" -maxdepth 5 -type d -name "${input.name}" -exec test -d "{}/.git" \\; -print 2>/dev/null | head -1`,
+          { timeout: 5000, encoding: "utf-8" },
+        ).trim();
+        if (result) {
+          localPath = result;
+          app.log.info({ name: input.name, localPath }, "Auto-discovered repo path");
+        } else {
+          return reply.status(400).send({
+            error: "PATH_NOT_FOUND",
+            message: `Could not find a git repo named "${input.name}" under ${home}. Specify the path manually.`,
+          });
+        }
+      } catch (err) {
+        return reply.status(400).send({
+          error: "DISCOVERY_FAILED",
+          message: `Could not auto-discover repo path for "${input.name}". Specify the path manually.`,
+        });
+      }
+    }
+
+    // Verify path exists and is a git repo
+    try {
+      execSync(`git -C "${localPath}" rev-parse --git-dir 2>/dev/null`, {
+        timeout: 3000,
+        encoding: "utf-8",
+      });
+    } catch {
+      return reply.status(400).send({
+        error: "NOT_A_GIT_REPO",
+        message: `"${localPath}" is not a valid git repository.`,
+      });
+    }
+
+    // Auto-detect default branch if not explicitly provided (beyond the default "main")
+    if (!defaultBranch || defaultBranch === "main") {
+      try {
+        const branch = execSync(
+          `git -C "${localPath}" symbolic-ref --short HEAD 2>/dev/null || git -C "${localPath}" rev-parse --abbrev-ref HEAD`,
+          { timeout: 3000, encoding: "utf-8" },
+        ).trim();
+        if (branch) defaultBranch = branch;
+      } catch {
+        // fall back to "main"
+      }
+    }
+
+    const repoRow = {
       id,
       name: input.name,
-      localPath: input.localPath,
-      defaultBranch: input.defaultBranch,
+      localPath,
+      defaultBranch,
       envVars: JSON.stringify(input.envVars),
       createdAt: Date.now(),
       lastUsedAt: null,
     };
 
-    await db.insert(schema.repos).values(repo);
-    return { ...repo, envVars: input.envVars };
+    await db.insert(schema.repos).values(repoRow);
+    return { ...repoRow, envVars: input.envVars };
   });
 
   // List repos

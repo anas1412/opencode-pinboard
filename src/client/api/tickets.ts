@@ -55,3 +55,18 @@ export function updateTicket(id: string, input: TicketUpdateInput): Promise<Tick
 export function deleteTicket(id: string): Promise<void> {
   return apiFetch(`/api/tickets/${id}`, { method: "DELETE" });
 }
+
+export function createTicketSession(ticketId: string): Promise<{
+  id: string;
+  ticketId: string;
+  cwd: string;
+  branch: string;
+  opencodeSessionId?: string | null;
+  opencodePort: number;
+}> {
+  return apiFetch("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify({ ticketId }),
+  });
+}
+

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const repoCreateSchema = z.object({
   name: z.string().min(1).max(128),
-  localPath: z.string().min(1),
+  localPath: z.string().default(""),
   defaultBranch: z.string().min(1).default("main"),
   envVars: z.record(z.string()).optional().default({}),
 });

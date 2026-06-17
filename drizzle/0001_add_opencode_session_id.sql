@@ -1,0 +1,1 @@
+ALTER TABLE `session` ADD `opencode_session_id` text;

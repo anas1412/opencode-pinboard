@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import type { TicketCategory, TicketPriority } from "../../shared/types";
 
 export default function TicketCreate() {
-  const { createOpen, setCreateOpen } = useAppStore();
+  const { createOpen, setCreateOpen, selectedRepoId } = useAppStore();
   const { data: repos } = useRepos();
   const createTicket = useCreateTicket();
   const titleRef = useRef<HTMLInputElement>(null);
@@ -18,13 +18,17 @@ export default function TicketCreate() {
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [tags, setTags] = useState("");
 
+  // The repo to use: selectedRepoId takes priority, then form state, then auto-pick if only one
+  const effectiveRepoId = selectedRepoId || repoId;
+
   // Focus title when panel opens
   useEffect(() => {
     if (createOpen) {
       setTimeout(() => titleRef.current?.focus(), 100);
-      // Set default repo if only one exists
-      if (repos && repos.length === 1 && !repoId) {
-        setRepoId(repos[0].id);
+      if (selectedRepoId) {
+        setRepoId(selectedRepoId); // already in a repo — pre-select it
+      } else if (repos && repos.length === 1 && !repoId) {
+        setRepoId(repos[0].id); // only one repo — auto-select
       }
     }
   }, [createOpen]);
@@ -43,12 +47,13 @@ export default function TicketCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim() || !repoId) return;
+    const repo = effectiveRepoId;
+    if (!title.trim() || !description.trim() || !repo) return;
 
     await createTicket.mutateAsync({
       title: title.trim(),
       description: description.trim(),
-      repoId,
+      repoId: repo,
       category,
       priority,
       tags: tags
@@ -112,24 +117,31 @@ export default function TicketCreate() {
             />
           </div>
 
-          {/* Repo */}
+          {/* Repo — hidden when already selected in sidebar */}
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-1.5">Repo</label>
-            <select
-              value={repoId}
-              onChange={(e) => setRepoId(e.target.value)}
-              required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="" disabled>
-                Select a repo...
-              </option>
-              {repos?.map((repo) => (
-                <option key={repo.id} value={repo.id}>
-                  {repo.name}
+            {selectedRepoId ? (
+              <div className="w-full bg-zinc-800/60 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-400">
+                {repos?.find((r) => r.id === selectedRepoId)?.name ?? "Selected repo"}
+                <span className="text-xs text-zinc-600 ml-2">(from sidebar)</span>
+              </div>
+            ) : (
+              <select
+                value={repoId}
+                onChange={(e) => setRepoId(e.target.value)}
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="" disabled>
+                  Select a repo...
                 </option>
-              ))}
-            </select>
+                {repos?.map((repo) => (
+                  <option key={repo.id} value={repo.id}>
+                    {repo.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Category */}
@@ -201,7 +213,7 @@ export default function TicketCreate() {
           <button
             type="submit"
             onClick={handleSubmit}
-            disabled={!title.trim() || !description.trim() || !repoId || createTicket.isPending}
+            disabled={!title.trim() || !description.trim() || !effectiveRepoId || createTicket.isPending}
             className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {createTicket.isPending ? "Creating..." : "Create ticket"}
