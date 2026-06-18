@@ -8,6 +8,9 @@ import { startSessionServer, stopSessionServer, getSessionPort } from "../openco
 import { emitSse } from "../sse";
 import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession, fetchOpencodeSessionCost } from "./cost-utils";
 
+// Track which sessions are currently improving prompts (for client polling)
+const improvingSessions = new Map<string, boolean>();
+
 const createSessionSchema = z.object({
   ticketId: z.string().uuid(),
 });
@@ -47,13 +50,14 @@ async function sendToSession(
   repoPath: string,
   sessionId: string,
   text: string,
+  noReply = false,
 ): Promise<void> {
   const url = `http://127.0.0.1:${port}/session/${sessionId}/message?directory=${encodeURIComponent(repoPath)}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      noReply: false,
+      noReply,
       parts: [{ type: "text", text }],
     }),
   });
@@ -72,6 +76,7 @@ async function generateAndSendImprovedPrompt(
   repoPath: string,
   opencodeSessionId: string,
   description: string,
+  onInjecting?: () => void,
 ): Promise<void> {
   const tempLabel = `improve-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -147,7 +152,10 @@ Rewritten prompt:`;
       } catch { /* best-effort */ }
 
       // 7. Send the improved prompt (or original as fallback) to the real session
-      await sendToSession(port, repoPath, opencodeSessionId, improved || description);
+      // Fire onInjecting right when the HTTP request is sent (AI starts working), don't wait for full reply
+      const sendPromise = sendToSession(port, repoPath, opencodeSessionId, improved || description);
+      onInjecting?.();
+      await sendPromise;
     } finally {
       // Clean up temp session
       fetch(
@@ -157,7 +165,9 @@ Rewritten prompt:`;
     }
   } catch (err) {
     console.warn("Failed to generate improved prompt, sending raw description:", err);
-    await sendToSession(port, repoPath, opencodeSessionId, description).catch(() => {});
+    const sendPromise = sendToSession(port, repoPath, opencodeSessionId, description).catch(() => {});
+    onInjecting?.();
+    await sendPromise;
   }
 }
 
@@ -414,18 +424,14 @@ export function registerSessionRoutes(app: FastifyInstance) {
       .set({ opencodeSessionId })
       .where(eq(schema.sessions.id, sessionId));
 
-    // If this is a new session (not reuse), generate/forward the initial prompt
-    if (!existingSession && opencodeSessionId) {
+    // Check if improvement would be needed (client will call /improve separately)
+    let forwardEnabled = false;
+    if (!existingSession && opencodeSessionId && ticket.description) {
       const [settingsRow] = await db
         .select()
         .from(schema.settings)
         .where(eq(schema.settings.id, "global"));
-
-      const forwardEnabled = settingsRow?.forwardDescription ?? true;
-      if (forwardEnabled && ticket.description) {
-        // Fire-and-forget — don't block the response
-        generateAndSendImprovedPrompt(port, repo.localPath, opencodeSessionId, ticket.description);
-      }
+      forwardEnabled = settingsRow?.forwardDescription ?? true;
     }
 
     return {
@@ -435,7 +441,55 @@ export function registerSessionRoutes(app: FastifyInstance) {
       branch: ticket.branch,
       opencodeSessionId,
       opencodePort: port,
+      forwardEnabled,
     };
+  });
+
+  // Fire-and-forget prompt improvement (non-blocking — client polls /improving for status)
+  app.post("/api/sessions/:id/improve", async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const [session] = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, id));
+    if (!session)
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Session not found" });
+
+    const [ticket] = await db
+      .select()
+      .from(schema.tickets)
+      .where(eq(schema.tickets.id, session.ticketId));
+    if (!ticket)
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Ticket not found" });
+
+    if (!session.opencodeSessionId)
+      return reply.status(400).send({ error: "NO_OPENCODE_SESSION", message: "Session has no opencode session" });
+
+    const port = getSessionPort(id);
+    if (!port)
+      return reply.status(400).send({ error: "SESSION_NOT_RUNNING", message: "Session is not running" });
+
+    if (!ticket.description)
+      return { improving: false };
+
+    improvingSessions.set(id, true);
+
+    generateAndSendImprovedPrompt(
+      port,
+      session.cwd,
+      session.opencodeSessionId,
+      ticket.description,
+      () => improvingSessions.set(id, false),
+    ).catch(() => improvingSessions.set(id, false));
+
+    return { improving: true };
+  });
+
+  // Pollable status endpoint for prompt improvement
+  app.get("/api/sessions/:id/improving", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    return { improving: improvingSessions.get(id) ?? false };
   });
 
   // Send a message to an active session

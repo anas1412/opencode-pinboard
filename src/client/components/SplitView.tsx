@@ -4,7 +4,7 @@ import { useAppStore } from "../store/app";
 import TicketDetail from "./TicketDetail";
 import GitToolbar from "./GitToolbar";
 import { ArrowLeft, Play, Square, ExternalLink, Loader2 } from "lucide-react";
-import { createTicketSession, fetchTicket } from "../api/tickets";
+import { createTicketSession, fetchTicket, improveSessionPrompt } from "../api/tickets";
 
 type SessionPhase = "idle" | "starting" | "active" | "stopped" | "error";
 
@@ -25,6 +25,9 @@ export default function SplitView() {
   const [opencodeSessionId, setOpencodeSessionId] = useState<string | null>(null);
   const [phase, setPhase] = useState<SessionPhase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [forwardEnabled, setForwardEnabled] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [overlayText, setOverlayText] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Session URL: /<base64-directory>/session/<session-id>
@@ -51,15 +54,19 @@ export default function SplitView() {
         if (!active) return;
 
         if (ticket.activeSessionId) {
+          setOverlayText("opening opencode");
           const session = await createTicketSession(selectedTicketId);
           if (!active) return;
           setSessionId(session.id);
           setOpencodePort(session.opencodePort);
           setCwd(session.cwd);
           setOpencodeSessionId(session.opencodeSessionId ?? null);
+          setForwardEnabled(session.forwardEnabled);
+          setOverlayText(null);
           setPhase("active");
           queryClient.invalidateQueries({ queryKey: ["tickets"] });
         } else {
+          setOverlayText(null);
           setPhase("idle");
         }
       } catch (err) {
@@ -72,6 +79,11 @@ export default function SplitView() {
 
     return () => { active = false; };
   }, [selectedTicketId, queryClient]);
+
+  // Reset iframe loading state whenever the URL changes
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [opencodeUrl]);
 
   // Fetch current git branch live from the repo when session is active
   useEffect(() => {
@@ -90,11 +102,28 @@ export default function SplitView() {
     setError(null);
 
     try {
+      setOverlayText("opening opencode");
       const session = await createTicketSession(selectedTicketId);
+
       setSessionId(session.id);
       setOpencodePort(session.opencodePort);
       setCwd(session.cwd);
       setOpencodeSessionId(session.opencodeSessionId ?? null);
+      setForwardEnabled(session.forwardEnabled);
+
+      if (session.forwardEnabled) {
+        setOverlayText("creating your prompt");
+        await improveSessionPrompt(session.id);
+        // Poll until the background improvement finishes
+        while (true) {
+          const res = await fetch(`/api/sessions/${session.id}/improving`);
+          const { improving } = await res.json();
+          if (!improving) break;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+
+      setOverlayText(null);
       setPhase("active");
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     } catch (err) {
@@ -128,12 +157,12 @@ export default function SplitView() {
 
   // Overlay content for the right panel
   let overlay: React.ReactNode = null;
-  if (phase === "starting") {
+  if (phase === "starting" || (phase === "active" && !iframeLoaded)) {
     overlay = (
       <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-10">
         <div className="text-center space-y-4">
           <Loader2 size={24} className="mx-auto animate-spin text-blue-400" />
-          <p className="text-sm text-zinc-400">Starting opencode...</p>
+          <p className="text-sm text-zinc-400">{overlayText ?? "opening opencode"}</p>
         </div>
       </div>
     );
@@ -205,6 +234,7 @@ export default function SplitView() {
               className="w-full h-full border-0"
               title="opencode"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              onLoad={() => setIframeLoaded(true)}
             />
           )}
 

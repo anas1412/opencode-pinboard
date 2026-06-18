@@ -89,10 +89,15 @@ export function createTicketSession(ticketId: string): Promise<{
   branch: string;
   opencodeSessionId?: string | null;
   opencodePort: number;
+  forwardEnabled: boolean;
 }> {
   return apiFetch("/api/sessions", {
     method: "POST",
     body: JSON.stringify({ ticketId }),
   });
+}
+
+export function improveSessionPrompt(sessionId: string): Promise<{ improved: boolean }> {
+  return apiFetch(`/api/sessions/${sessionId}/improve`, { method: "POST" });
 }
 
