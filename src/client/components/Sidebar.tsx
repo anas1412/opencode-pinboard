@@ -4,10 +4,10 @@ import { useRepos, useDeleteRepo } from "../hooks/useRepos";
 import { useTickets } from "../hooks/useTickets";
 import { useCostSummary } from "../hooks/useCostSummary";
 import AddRepoModal from "./AddRepoModal";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus } from "lucide-react";
 
 export default function Sidebar() {
-  const { selectedRepoId, setSelectedRepoId, setSelectedTicketId, setView } = useAppStore();
+  const { selectedRepoId, setSelectedRepoId, setSelectedTicketId, setView, setCreateOpen } = useAppStore();
   const { data: repos } = useRepos();
   const { data: ticketsData } = useTickets();
   const { data: costs } = useCostSummary();
@@ -37,11 +37,18 @@ export default function Sidebar() {
 
       {/* Active sessions section — scrollable */}
       <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0">
-        <div className="px-2 py-2">
+        <div className="flex items-center justify-between px-2 py-2">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
             Active
           </p>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+            title="New ticket"
+          >
+            <Plus size={14} />
+          </button>
         </div>
         {activeTickets.map((ticket) => (
           <button
