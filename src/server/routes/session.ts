@@ -458,13 +458,37 @@ export function registerSessionRoutes(app: FastifyInstance) {
     if (!session.opencodeSessionId)
       return reply.status(400).send({ error: "NO_OPENCODE_SESSION", message: "Session has no opencode session" });
 
-    const port = getSessionPort(id);
-    if (!port)
-      return reply.status(400).send({ error: "SESSION_NOT_RUNNING", message: "Session server is not running" });
+    let port = getSessionPort(id);
+    if (!port) {
+      port = await startSessionServer(id, session.cwd);
+    }
 
     await sendToSession(port, session.cwd, session.opencodeSessionId, text);
 
     return { success: true };
+  });
+
+  // Get the current git branch for a session's repo
+  app.get("/api/sessions/:id/branch", async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const [session] = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.id, id));
+
+    if (!session)
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Session not found" });
+
+    try {
+      const head = readFileSync(join(session.cwd, ".git", "HEAD"), "utf-8").trim();
+      const refPrefix = "ref: refs/heads/";
+      const branch = head.startsWith(refPrefix) ? head.slice(refPrefix.length) : null;
+      if (!branch) throw new Error("Not on a branch");
+      return { branch };
+    } catch {
+      return reply.status(500).send({ error: "GIT_FAILED", message: "Could not determine git branch" });
+    }
   });
 
   // Stop session (marks ended, clears ticket.activeSessionId, does NOT kill opencode serve)

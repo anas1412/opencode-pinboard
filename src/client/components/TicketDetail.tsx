@@ -7,7 +7,6 @@ import { useAppStore } from "../store/app";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_CATEGORIES } from "../../shared/types";
 import { Clock, GitBranch, DollarSign, FileCode, Pencil, X, Trash2, Check } from "lucide-react";
-import GitToolbar from "./GitToolbar";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -22,10 +21,9 @@ interface TicketDetailProps {
   ticketId: string;
   onStartSession: () => void;
   sessionActive: boolean;
-  sessionId: string | null;
 }
 
-export default function TicketDetail({ ticketId, onStartSession, sessionActive, sessionId }: TicketDetailProps) {
+export default function TicketDetail({ ticketId, onStartSession, sessionActive }: TicketDetailProps) {
   const { data: ticket, isLoading, isError } = useTicket(ticketId);
   const { data: repos } = useRepos();
   const { data: sessions } = useTicketSessions(ticketId);
@@ -282,9 +280,6 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive, 
           )}
         </div>
       </div>
-      {sessionActive && sessionId && (
-        <GitToolbar sessionId={sessionId} />
-      )}
     </div>
     );
   }
@@ -413,9 +408,6 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive, 
         </div>
       )}
       </div>
-      {sessionActive && sessionId && (
-        <GitToolbar sessionId={sessionId} />
-      )}
     </div>
   );
 }

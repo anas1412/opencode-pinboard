@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "../store/app";
 import TicketDetail from "./TicketDetail";
+import GitToolbar from "./GitToolbar";
 import { ArrowLeft, Play, Square, ExternalLink, Loader2 } from "lucide-react";
 import { createTicketSession, fetchTicket } from "../api/tickets";
 
@@ -20,6 +21,7 @@ export default function SplitView() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [opencodePort, setOpencodePort] = useState<number | null>(null);
   const [cwd, setCwd] = useState<string | null>(null);
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
   const [opencodeSessionId, setOpencodeSessionId] = useState<string | null>(null);
   const [phase, setPhase] = useState<SessionPhase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,17 @@ export default function SplitView() {
     return () => { active = false; };
   }, [selectedTicketId, queryClient]);
 
+  // Fetch current git branch live from the repo when session is active
+  useEffect(() => {
+    if (!sessionId) { setCurrentBranch(null); return; }
+    let active = true;
+    fetch(`/api/sessions/${sessionId}/branch`)
+      .then((r) => r.json())
+      .then((data) => { if (active) setCurrentBranch(data.branch ?? null); })
+      .catch(() => { if (active) setCurrentBranch(null); });
+    return () => { active = false; };
+  }, [sessionId]);
+
   const handleStartSession = useCallback(async () => {
     if (!selectedTicketId || phase === "starting") return;
     setPhase("starting");
@@ -100,6 +113,7 @@ export default function SplitView() {
     setPhase("stopped");
     setOpencodePort(null);
     setCwd(null);
+    setCurrentBranch(null);
     setOpencodeSessionId(null);
     queryClient.invalidateQueries({ queryKey: ["tickets"] });
   }, [sessionId, queryClient]);
@@ -147,7 +161,7 @@ export default function SplitView() {
       <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
         <HeaderBar onBack={handleBack} />
         <div className="flex-1 overflow-hidden">
-          <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={sessionActive} sessionId={sessionId} />
+          <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={sessionActive} />
         </div>
       </div>
 
@@ -155,11 +169,13 @@ export default function SplitView() {
       <div className="flex-1 flex flex-col bg-zinc-950">
         {/* Top bar — only when we have an active/starting session with a URL */}
         {opencodeUrl && (
-          <div className="flex items-center justify-between px-4 border-b border-zinc-800 bg-zinc-950 h-9">
-            <span className="text-xs text-zinc-500 font-mono">
-              opencode · port {opencodePort}
+          <div className="flex items-center gap-2 px-4 border-b border-zinc-800 bg-zinc-950 h-9">
+            <span className="text-xs text-zinc-500 font-mono shrink-0">
+              opencode · port {opencodePort}{currentBranch ? ` · ${currentBranch}` : ""}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex-1" />
+            <GitToolbar sessionId={sessionId} />
+            <div className="flex items-center gap-2 shrink-0">
               <a
                 href={opencodeUrl}
                 target="_blank"
