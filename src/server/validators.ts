@@ -43,6 +43,7 @@ export const settingsUpdateSchema = z.object({
 
 export const opencodeConfigUpdateSchema = z.object({
   model: z.string().min(1).optional(),
+  default_agent: z.string().min(1).optional(),
 });
 
 export const ticketListQuerySchema = z.object({

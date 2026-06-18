@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRepos, useUpdateRepo } from "../hooks/useRepos";
 import { fetchSettings, updateSettings } from "../api/settings";
-import { fetchOpencodeConfig, updateOpencodeConfig } from "../api/opencode-config";
+import { fetchOpencodeConfig, updateOpencodeConfig, fetchAgents } from "../api/opencode-config";
 import { THEMES, type Theme } from "../../shared/types";
 import { useAppStore } from "../store/app";
-import { Settings2, Plus, X, Save, Send, Palette, Cpu } from "lucide-react";
+import { Settings2, Plus, X, Save, Send, Palette, Cpu, Bot } from "lucide-react";
 
 // ─── Env var editor (unchanged from original) ──────────────────────────
 
@@ -172,11 +172,18 @@ export default function Settings() {
     queryFn: fetchOpencodeConfig,
   });
 
+  const { data: agents = [] } = useQuery({
+    queryKey: ["opencode-agents"],
+    queryFn: fetchAgents,
+  });
+
   // ── Local state ────────────────────────────────────────────────────
   const [forward, setForward] = useState(true);
   const [theme, setLocalTheme] = useState<Theme>("amber");
   const [model, setModel] = useState("");
   const [modelDirty, setModelDirty] = useState(false);
+  const [defaultAgent, setDefaultAgent] = useState("");
+  const [agentDirty, setAgentDirty] = useState(false);
 
   // Sync server state → local on load
   useEffect(() => {
@@ -189,6 +196,7 @@ export default function Settings() {
   useEffect(() => {
     if (opencodeCfg) {
       setModel(opencodeCfg.model || "");
+      setDefaultAgent(opencodeCfg.default_agent || "build");
     }
   }, [opencodeCfg]);
 
@@ -209,6 +217,14 @@ export default function Settings() {
     },
   });
 
+  const saveAgent = useMutation({
+    mutationFn: (input: { default_agent: string }) => updateOpencodeConfig(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opencode-config"] });
+      setAgentDirty(false);
+    },
+  });
+
   // ── Handlers ───────────────────────────────────────────────────────
   const handleToggleForward = () => {
     const next = !forward;
@@ -224,6 +240,15 @@ export default function Settings() {
 
   const handleModelSave = () => {
     saveModel.mutate({ model });
+  };
+
+  const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setDefaultAgent(e.target.value);
+    setAgentDirty(true);
+  };
+
+  const handleAgentSave = () => {
+    saveAgent.mutate({ default_agent: defaultAgent });
   };
 
   const isLoading = settingsLoading || cfgLoading;
@@ -306,7 +331,36 @@ export default function Settings() {
             </p>
           </SectionCard>
 
-          {/* ── Section 4: Repo env vars (existing) ─────────────────── */}
+          {/* ── Section 4: Default Agent ────────────────────────────── */}
+          <SectionCard
+            icon={<Bot size={14} />}
+            title="Default Agent"
+            description="Default opencode agent for new sessions. Saved to opencode.json."
+          >
+            <div className="flex items-center gap-2">
+              <select
+                value={defaultAgent}
+                onChange={handleAgentChange}
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
+              >
+                {agents.map((a) => (
+                  <option key={a.name} value={a.name}>
+                    {a.name}{a.mode ? ` (${a.mode})` : ""}{a.description ? ` — ${a.description}` : ""}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAgentSave}
+                disabled={saveAgent.isPending || !agentDirty}
+                className="btn-primary !text-xs"
+              >
+                <Save size={12} />
+                {saveAgent.isPending ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </SectionCard>
+
+          {/* ── Section 5: Repo env vars ────────────────────────────── */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-zinc-400"><Settings2 size={14} /></span>

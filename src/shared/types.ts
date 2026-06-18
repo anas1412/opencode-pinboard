@@ -159,4 +159,11 @@ export interface Settings {
 
 export interface OpencodeConfig {
   model?: string;
+  default_agent?: string;
+}
+
+export interface AgentEntry {
+  name: string;
+  description?: string;
+  mode?: string;
 }

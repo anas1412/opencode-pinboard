@@ -1,13 +1,16 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join } from "path";
 import type { FastifyInstance } from "fastify";
 import { opencodeConfigUpdateSchema } from "../validators";
 
-function getConfigPath(): string {
-  const configDir = process.env.XDG_CONFIG_HOME
+function getConfigDir(): string {
+  return process.env.XDG_CONFIG_HOME
     ? join(process.env.XDG_CONFIG_HOME, "opencode")
     : join(process.env.HOME!, ".config", "opencode");
-  return join(configDir, "opencode.json");
+}
+
+function getConfigPath(): string {
+  return join(getConfigDir(), "opencode.json");
 }
 
 function readConfig(): Record<string, unknown> {
@@ -27,12 +30,82 @@ function writeConfig(config: Record<string, unknown>): void {
   writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
 }
 
+const BUILTIN_AGENTS = [
+  { name: "build", description: "Default coding agent", mode: "primary" },
+  { name: "plan", description: "Plan-only agent (no edits)", mode: "primary" },
+  { name: "general", description: "General-purpose subagent", mode: "subagent" },
+  { name: "explore", description: "Code exploration subagent", mode: "subagent" },
+  { name: "scout", description: "Context discovery subagent", mode: "subagent" },
+];
+
+function listAgents(): { name: string; description?: string; mode?: string }[] {
+  const agents: { name: string; description?: string; mode?: string }[] = [];
+  const seen = new Set<string>();
+
+  // 1. Built-in agents
+  for (const a of BUILTIN_AGENTS) {
+    agents.push({ ...a });
+    seen.add(a.name);
+  }
+
+  // 2. Custom agents from opencode.json agent field
+  const config = readConfig();
+  const customAgents = config.agent as Record<string, { description?: string; mode?: string }> | undefined;
+  if (customAgents) {
+    for (const [name, def] of Object.entries(customAgents)) {
+      if (!seen.has(name)) {
+        agents.push({ name, description: def?.description, mode: def?.mode });
+        seen.add(name);
+      }
+    }
+  }
+
+  // 3. Agents from ~/.config/opencode/agents/ (*.md files)
+  const globalAgentDir = join(getConfigDir(), "agents");
+  if (existsSync(globalAgentDir)) {
+    try {
+      for (const entry of readdirSync(globalAgentDir)) {
+        if (entry.endsWith(".md")) {
+          const name = entry.slice(0, -3);
+          if (!seen.has(name)) {
+            agents.push({ name });
+            seen.add(name);
+          }
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // 4. Agents from .opencode/agents/ in project directories
+  const possibleDirs = [
+    join(process.cwd(), ".opencode", "agents"),
+  ];
+  for (const dir of possibleDirs) {
+    if (existsSync(dir)) {
+      try {
+        for (const entry of readdirSync(dir)) {
+          if (entry.endsWith(".md")) {
+            const name = entry.slice(0, -3);
+            if (!seen.has(name)) {
+              agents.push({ name });
+              seen.add(name);
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  return agents;
+}
+
 export function registerOpencodeConfigRoutes(app: FastifyInstance) {
-  // Get opencode config (only model field for now)
+  // Get opencode config
   app.get("/api/opencode/config", async () => {
     const config = readConfig();
     return {
       model: (config.model as string) || "",
+      default_agent: (config.default_agent as string) || "",
     };
   });
 
@@ -42,13 +115,22 @@ export function registerOpencodeConfigRoutes(app: FastifyInstance) {
     const config = readConfig();
 
     if (input.model !== undefined) {
-      config.model = input.model || undefined; // empty string → remove field
+      config.model = input.model || undefined;
+    }
+    if (input.default_agent !== undefined) {
+      config.default_agent = input.default_agent || undefined;
     }
 
     writeConfig(config);
 
     return {
       model: (config.model as string) || "",
+      default_agent: (config.default_agent as string) || "",
     };
+  });
+
+  // List available agents
+  app.get("/api/opencode/agents", async () => {
+    return listAgents();
   });
 }
