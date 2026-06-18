@@ -85,7 +85,7 @@ function RepoSettingsCard({ repo }: { repo: { id: string; name: string; envVars:
           <button
             onClick={handleSave}
             disabled={updateRepo.isPending}
-            className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+            className="btn-primary !text-xs"
           >
             <Save size={12} />
             {updateRepo.isPending ? "Saving..." : "Save"}

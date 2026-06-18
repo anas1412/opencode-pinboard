@@ -18,15 +18,17 @@ export default function Sidebar() {
     ticketsData?.tickets?.filter((t) => t.activeSessionId !== null) ?? [];
 
   return (
-    <aside className="w-[220px] min-w-[220px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-      <div className="p-4">
+    <aside className="w-[220px] min-w-[220px] border-r border-zinc-800/60 flex flex-col bg-zinc-950 relative">
+      {/* Accent glow line */}
+      <div className="absolute top-0 left-0 w-px h-full pointer-events-none" style={{ background: `linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 50%, transparent) 40%, transparent 100%)` }} />
+      <div className="p-4 flex justify-center">
         <button
           onClick={() => {
             setSelectedRepoId(null);
             setSelectedTicketId(null);
             setView("dashboard");
           }}
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white hover:text-blue-400 transition-colors"
+          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white transition-colors duration-150 hover:[color:var(--accent-text)]"
         >
           <Pin size={18} className="-rotate-45" />
           OpenTack
@@ -36,7 +38,10 @@ export default function Sidebar() {
       {/* Active sessions section — scrollable */}
       <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0">
         <div className="px-2 py-2">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Active</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
+            Active
+          </p>
         </div>
         {activeTickets.map((ticket) => (
           <button
@@ -58,8 +63,11 @@ export default function Sidebar() {
       </div>
 
       {/* Repos section */}
-      <div className="flex items-center justify-between px-4 py-2">
-        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Repos</p>
+      <div className="flex items-center justify-between px-4 py-2 mt-1">
+        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
+          Repos
+        </p>
         <button
           onClick={() => setAddRepoOpen(true)}
           className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
@@ -75,10 +83,10 @@ export default function Sidebar() {
             setSelectedTicketId(null);
             setView("dashboard");
           }}
-          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
+          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-150 ${
             selectedRepoId === null
-              ? "bg-zinc-800 text-white"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "nav-active"
+              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
           }`}
         >
           <Layers size={14} className="shrink-0" />
@@ -93,10 +101,10 @@ export default function Sidebar() {
                 setSelectedTicketId(null);
                 setView("dashboard");
               }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors flex-1 min-w-0 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-150 flex-1 min-w-0 ${
                 selectedRepoId === repo.id
-                  ? "bg-zinc-800 text-white"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "nav-active"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
               }`}
             >
               <GitBranch size={14} className="shrink-0" />

@@ -126,7 +126,6 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             <span className="text-xs text-zinc-500 capitalize">{ticket.priority}</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {!sessionActive && (
               <button
                 onClick={startEditing}
                 className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
@@ -134,7 +133,6 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
               >
                 <Pencil size={14} />
               </button>
-            )}
             {!deleteConfirm ? (
               <button
                 onClick={() => setDeleteConfirm(true)}
@@ -265,7 +263,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
           <button
             onClick={saveEdits}
             disabled={saving}
-            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors"
+            className="btn-primary !px-2.5 !py-1 !text-xs"
           >
             <Check size={12} />
             {saving ? "Saving..." : "Save"}

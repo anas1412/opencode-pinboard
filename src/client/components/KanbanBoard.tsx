@@ -203,22 +203,24 @@ export default function KanbanBoard({ repoId, search, status, priority, category
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.status)}
-              className={`flex-1 space-y-2 overflow-y-auto rounded-lg transition-colors ${
-                isOver ? "bg-zinc-800/50 ring-1 ring-blue-500/30" : ""
-              }`}
-            >
-              {tickets.map((ticket) => (
-                <TicketCard
-                  key={ticket.id}
-                  ticket={ticket}
-                  repoName={repoMap.get(ticket.repoId) ?? ticket.repoId.slice(0, 8)}
-                  onSelect={setSelectedTicketId}
-                />
-              ))}
-              {tickets.length === 0 && (
-                <div className={`h-24 rounded-lg border-2 border-dashed transition-colors ${
-                  isOver ? "border-blue-500/40 bg-blue-500/5" : "border-zinc-800"
-                }`} />
+              className={`flex-1 space-y-2 overflow-y-auto rounded-lg transition-colors`}
+              style={isOver ? { backgroundColor: 'var(--accent-subtler)', boxShadow: '0 0 0 1px var(--accent-ring)' } : undefined}
+              >
+                {tickets.map((ticket) => (
+                  <TicketCard
+                    key={ticket.id}
+                    ticket={ticket}
+                    repoName={repoMap.get(ticket.repoId) ?? ticket.repoId.slice(0, 8)}
+                    onSelect={setSelectedTicketId}
+                  />
+                ))}
+                {tickets.length === 0 && (
+                  <div
+                    className={`h-24 rounded-lg border-2 border-dashed transition-colors ${
+                      isOver ? "" : "border-zinc-800"
+                    }`}
+                    style={isOver ? { borderColor: 'var(--accent-border)', backgroundColor: 'var(--accent-subtler)' } : undefined}
+                  />
               )}
             </div>
           </div>

@@ -47,13 +47,13 @@ export default function App() {
                   )}
                 </h2>
                 {/* View toggle */}
-                <div className="flex items-center gap-0.5 bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
+                <div className="flex items-center gap-0.5 bg-zinc-900/80 rounded-lg p-0.5 border border-[var(--border-subtle)]">
                   <button
                     onClick={() => setView("dashboard")}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
                       view === "dashboard"
-                        ? "bg-zinc-700 text-white"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "tab-active"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
                     }`}
                   >
                     <LayoutDashboard size={13} />
@@ -61,10 +61,10 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setView("list")}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
                       view === "list"
-                        ? "bg-zinc-700 text-white"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "tab-active"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
                     }`}
                   >
                     <List size={13} />
@@ -72,10 +72,10 @@ export default function App() {
                   </button>
                   <button
                     onClick={() => setView("kanban")}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
                       view === "kanban"
-                        ? "bg-zinc-700 text-white"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "tab-active"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
                     }`}
                   >
                     <Columns size={13} />
@@ -91,7 +91,7 @@ export default function App() {
 
               <button
                 onClick={() => setCreateOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-sm font-medium transition-colors shrink-0"
+                className="btn-primary shrink-0"
               >
                 <Plus size={14} />
                 New ticket

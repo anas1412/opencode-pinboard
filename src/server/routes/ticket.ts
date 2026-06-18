@@ -2,7 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { eq, like, and, desc, sql, inArray } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { ticketCreateSchema, ticketUpdateSchema, ticketListQuerySchema } from "../validators";
-import { enrichFromOpencode, getOpencodeDb } from "./cost-utils";
+import {
+  enrichFromOpencode,
+  getOpencodeDb,
+  updateOpencodeSessionTitle,
+  deleteOpencodeSession,
+} from "./cost-utils";
 import { z } from "zod";
 
 export function registerTicketRoutes(app: FastifyInstance) {
@@ -184,6 +189,23 @@ export function registerTicketRoutes(app: FastifyInstance) {
     if (input.status === "resolved") update.resolvedAt = Date.now();
 
     await db.update(schema.tickets).set(update).where(eq(schema.tickets.id, id));
+
+    // Rename any associated opencode sessions to match the new ticket title
+    if (input.title !== undefined) {
+      const ticketSessions = await db
+        .select()
+        .from(schema.sessions)
+        .where(
+          and(
+            eq(schema.sessions.ticketId, id),
+            sql`${schema.sessions.opencodeSessionId} IS NOT NULL`,
+          ),
+        );
+      for (const s of ticketSessions) {
+        updateOpencodeSessionTitle(s.opencodeSessionId, input.title);
+      }
+    }
+
     const [row] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, id));
     return deserializeTicket(row!);
   });
@@ -191,6 +213,17 @@ export function registerTicketRoutes(app: FastifyInstance) {
   // Delete ticket
   app.delete("/api/tickets/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+
+    // Delete associated sessions + their opencode sessions
+    const ticketSessions = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.ticketId, id));
+    for (const s of ticketSessions) {
+      deleteOpencodeSession(s.opencodeSessionId);
+    }
+    await db.delete(schema.sessions).where(eq(schema.sessions.ticketId, id));
+
     await db.delete(schema.tickets).where(eq(schema.tickets.id, id));
     return reply.status(204).send();
   });
@@ -222,6 +255,15 @@ export function registerTicketRoutes(app: FastifyInstance) {
       ids: z.array(z.string().uuid()).min(1).max(100),
     }).parse(req.body);
 
+    // Delete associated sessions + their opencode sessions for all tickets
+    const ticketSessions = await db
+      .select()
+      .from(schema.sessions)
+      .where(inArray(schema.sessions.ticketId, body.ids));
+    for (const s of ticketSessions) {
+      deleteOpencodeSession(s.opencodeSessionId);
+    }
+    await db.delete(schema.sessions).where(inArray(schema.sessions.ticketId, body.ids));
     await db.delete(schema.tickets).where(inArray(schema.tickets.id, body.ids));
     return reply.status(204).send();
   });

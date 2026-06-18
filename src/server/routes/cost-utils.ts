@@ -2,13 +2,75 @@ import Database from "bun:sqlite";
 import { homedir } from "os";
 import { existsSync } from "fs";
 
+function opencodeDbPath(): string {
+  return `${homedir()}/.local/share/opencode/opencode.db`;
+}
+
 export function getOpencodeDb(): Database | null {
-  const dbPath = `${homedir()}/.local/share/opencode/opencode.db`;
+  const dbPath = opencodeDbPath();
   if (!existsSync(dbPath)) return null;
   try {
     return new Database(dbPath, { readonly: true });
   } catch {
     return null;
+  }
+}
+
+/**
+ * Open opencode's DB in read-write mode for mutations (title update, deletion).
+ * Returns null if the DB is unavailable.
+ */
+function getOpencodeDbWritable(): Database | null {
+  const dbPath = opencodeDbPath();
+  if (!existsSync(dbPath)) return null;
+  try {
+    return new Database(dbPath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Update the title of an opencode session to match the renamed ticket.
+ * This is a best-effort operation — non-fatal if opencode DB is unavailable.
+ */
+export function updateOpencodeSessionTitle(
+  opencodeSessionId: string | null,
+  newTitle: string,
+): boolean {
+  if (!opencodeSessionId) return false;
+  const ocDb = getOpencodeDbWritable();
+  if (!ocDb) return false;
+  try {
+    ocDb.run("UPDATE session SET title = ?, time_updated = ? WHERE id = ?", [
+      newTitle,
+      Date.now(),
+      opencodeSessionId,
+    ]);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    ocDb.close();
+  }
+}
+
+/**
+ * Delete an opencode session from opencode's own DB.
+ * Related rows (session_message, session_input, etc.) cascade-delete via FK.
+ * This is a best-effort operation — non-fatal if opencode DB is unavailable.
+ */
+export function deleteOpencodeSession(opencodeSessionId: string | null): boolean {
+  if (!opencodeSessionId) return false;
+  const ocDb = getOpencodeDbWritable();
+  if (!ocDb) return false;
+  try {
+    ocDb.run("DELETE FROM session WHERE id = ?", [opencodeSessionId]);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    ocDb.close();
   }
 }
 

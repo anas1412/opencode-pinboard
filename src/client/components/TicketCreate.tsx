@@ -98,7 +98,7 @@ export default function TicketCreate() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Short task description"
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
             />
           </div>
 
@@ -113,7 +113,7 @@ export default function TicketCreate() {
               placeholder="Describe the task in detail. This becomes opencode's initial prompt."
               rows={6}
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent resize-none"
             />
           </div>
 
@@ -130,7 +130,7 @@ export default function TicketCreate() {
                 value={repoId}
                 onChange={(e) => setRepoId(e.target.value)}
                 required
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
               >
                 <option value="" disabled>
                   Select a repo...
@@ -153,9 +153,9 @@ export default function TicketCreate() {
                   key={c}
                   type="button"
                   onClick={() => setCategory(c)}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
                     category === c
-                      ? "bg-blue-600 text-white"
+                      ? "tab-active"
                       : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
@@ -174,9 +174,9 @@ export default function TicketCreate() {
                   key={p}
                   type="button"
                   onClick={() => setPriority(p)}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
                     priority === p
-                      ? "bg-blue-600 text-white"
+                      ? "tab-active"
                       : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
@@ -196,7 +196,7 @@ export default function TicketCreate() {
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="auth, frontend, urgent"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
             />
           </div>
         </form>
@@ -214,7 +214,7 @@ export default function TicketCreate() {
             type="submit"
             onClick={handleSubmit}
             disabled={!title.trim() || !description.trim() || !effectiveRepoId || createTicket.isPending}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn-primary flex-1 justify-center"
           >
             {createTicket.isPending ? "Creating..." : "Create ticket"}
           </button>

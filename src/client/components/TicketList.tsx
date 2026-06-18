@@ -177,7 +177,7 @@ export default function TicketList({ repoId, search, status, priority, category 
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  className="accent-blue-500 cursor-pointer"
+                  className="accent-checkbox cursor-pointer"
                 />
               </th>
               <th className="pb-3 pr-4 font-medium">Status</th>
@@ -197,7 +197,7 @@ export default function TicketList({ repoId, search, status, priority, category 
                   key={ticket.id}
                   onClick={() => setSelectedTicketId(ticket.id)}
                   className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors group ${
-                    isSelected ? "bg-blue-500/5" : ""
+                    isSelected ? "row-accent" : ""
                   }`}
                 >
                   <td className="py-3 pr-3" onClick={(e) => e.stopPropagation()}>
@@ -205,7 +205,7 @@ export default function TicketList({ repoId, search, status, priority, category 
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(ticket.id)}
-                      className="accent-blue-500 cursor-pointer"
+                      className="accent-checkbox cursor-pointer"
                     />
                   </td>
                   <td className="py-3 pr-4">
