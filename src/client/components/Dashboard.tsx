@@ -269,6 +269,14 @@ export default function Dashboard({ repoId }: DashboardProps) {
                     <td className="px-4 py-2.5 text-zinc-200 text-right font-mono">${r.usd.toFixed(2)}</td>
                   </tr>
                 ))}
+                {costs.overheadUsd > 0 && (
+                  <tr className="border-t border-zinc-800/50">
+                    <td className="px-4 py-2.5 text-zinc-500 italic text-xs">App overhead</td>
+                    <td className="px-4 py-2.5 text-zinc-600 text-right font-mono text-xs">—</td>
+                    <td className="px-4 py-2.5 text-zinc-500 text-right font-mono text-xs">{costs.overheadTokens.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-zinc-400 text-right font-mono">${costs.overheadUsd.toFixed(2)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

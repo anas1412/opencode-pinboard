@@ -10,6 +10,7 @@ import {
   getOpencodeDb,
   updateOpencodeSessionTitle,
   deleteOpencodeSession,
+  fetchOpencodeSessionCost,
 } from "./cost-utils";
 import { startSessionServer, stopSessionServer } from "../opencode-manager";
 import { z } from "zod";
@@ -386,7 +387,22 @@ ${transcriptText}
         .filter(Boolean)
         .join("\n");
 
-      // 5. Clean up — delete temp session
+      // 5. Save app-level cost before deleting
+      try {
+        const cost = fetchOpencodeSessionCost(tempSessionId);
+        if (cost) {
+          await db.insert(schema.appCost).values({
+            id: crypto.randomUUID(),
+            type: "generate_notes",
+            ticketId: id,
+            costUsd: cost.costUsd,
+            totalTokens: cost.totalTokens,
+            createdAt: Date.now(),
+          });
+        }
+      } catch { /* best-effort */ }
+
+      // 6. Clean up — delete temp session
       fetch(
         `http://127.0.0.1:${port}/session/${tempSessionId}?directory=${encodeURIComponent(repo.localPath)}`,
         { method: "DELETE" },

@@ -5,6 +5,8 @@ export interface CostSummary {
   weekTotalTokens: number;
   sessionCount: number;
   ticketCount: number;
+  overheadUsd: number;
+  overheadTokens: number;
   perRepo: {
     repoId: string;
     repoName: string;

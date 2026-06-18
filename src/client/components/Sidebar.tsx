@@ -136,7 +136,7 @@ export default function Sidebar() {
       {/* Cost — compact */}
       <div className="px-4 py-3 border-t border-zinc-800 mt-auto">
         <div className="flex items-baseline justify-between">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Week</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Past 7 days</p>
           <p className="text-sm text-zinc-300 font-mono">
             {costs ? `$${costs.weekTotalUsd.toFixed(2)}` : "—"}
           </p>
@@ -147,6 +147,14 @@ export default function Sidebar() {
             {costs ? costs.weekTotalTokens.toLocaleString() : "—"}
           </p>
         </div>
+        {costs && costs.overheadUsd > 0 && (
+          <div className="flex items-baseline justify-between mt-0.5 pt-0.5 border-t border-zinc-800/50">
+            <p className="text-[11px] text-zinc-600">Overhead</p>
+            <p className="text-[11px] text-zinc-500 font-mono">
+              ${costs.overheadUsd.toFixed(2)} · {costs.overheadTokens.toLocaleString()} tok
+            </p>
+          </div>
+        )}
       </div>
 
       <button

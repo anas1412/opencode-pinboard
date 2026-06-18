@@ -125,3 +125,32 @@ export function enrichFromOpencode(
     ocDb.close();
   }
 }
+
+/**
+ * Fetch cost and token data for a single opencode session.
+ * Returns null if the session isn't found or the DB is unavailable.
+ */
+export function fetchOpencodeSessionCost(
+  opencodeSessionId: string,
+): { costUsd: number; totalTokens: number } | null {
+  const ocDb = getOpencodeDb();
+  if (!ocDb) return null;
+
+  try {
+    const row = ocDb
+      .query(
+        `SELECT cost, tokens_input + tokens_output as total_tokens
+         FROM session WHERE id = ?`,
+      )
+      .get(opencodeSessionId) as { cost: number; total_tokens: number } | undefined;
+
+    if (row) {
+      return { costUsd: row.cost, totalTokens: row.total_tokens };
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    ocDb.close();
+  }
+}

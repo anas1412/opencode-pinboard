@@ -273,11 +273,11 @@ export default function Settings() {
           <SectionCard
             icon={<Send size={14} />}
             title="Prompting"
-            description="Automatically forward the ticket description to opencode when starting a new session."
+            description="When enabled, the ticket description is used to generate an improved prompt for opencode when starting a new session."
           >
             <label className="flex items-center justify-between cursor-pointer group">
               <span className="text-sm text-zinc-300 group-hover:text-zinc-200 transition-colors">
-                Forward description to opencode
+                Improve initial prompt with AI
               </span>
               <button
                 onClick={handleToggleForward}

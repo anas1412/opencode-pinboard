@@ -19,6 +19,8 @@ export function registerCostRoutes(app: FastifyInstance) {
         sessionCount: 0,
         ticketCount: 0,
         perRepo: [],
+        overheadUsd: 0,
+        overheadTokens: 0,
       };
     }
 
@@ -76,12 +78,29 @@ export function registerCostRoutes(app: FastifyInstance) {
         .from(schema.tickets)
         .where(gte(schema.tickets.createdAt, weekAgo));
 
+      // App-level overhead costs (prompt improvement, notes generation)
+      let overheadUsd = 0;
+      let overheadTokens = 0;
+      try {
+        const [overhead] = await db
+          .select({
+            costUsd: sql<number>`COALESCE(SUM(${schema.appCost.costUsd}), 0)`,
+            totalTokens: sql<number>`COALESCE(SUM(${schema.appCost.totalTokens}), 0)`,
+          })
+          .from(schema.appCost)
+          .where(gte(schema.appCost.createdAt, weekAgo));
+        overheadUsd = overhead.costUsd;
+        overheadTokens = overhead.totalTokens;
+      } catch { /* table may not exist yet */ }
+
       return {
         weekTotalUsd: totals.total_cost,
         weekTotalTokens: totals.total_tokens,
         sessionCount: totals.session_count,
         ticketCount: ticketCount.count,
         perRepo: Array.from(perRepoMap.values()),
+        overheadUsd,
+        overheadTokens,
       };
     } catch {
       ocDb.close();
@@ -91,6 +110,8 @@ export function registerCostRoutes(app: FastifyInstance) {
         sessionCount: 0,
         ticketCount: 0,
         perRepo: [],
+        overheadUsd: 0,
+        overheadTokens: 0,
       };
     }
   });

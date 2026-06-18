@@ -6,7 +6,7 @@ import { join } from "path";
 import { db, schema } from "../../db";
 import { startSessionServer, stopSessionServer } from "../opencode-manager";
 import { emitSse } from "../sse";
-import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession } from "./cost-utils";
+import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession, fetchOpencodeSessionCost } from "./cost-utils";
 
 const createSessionSchema = z.object({
   ticketId: z.string().uuid(),
@@ -39,30 +39,125 @@ function readOpencodeModel(): { providerID: string; id: string } | undefined {
 
 // ─── Opencode message injector ────────────────────────────────────────
 
-async function sendDescriptionToOpencode(
+/**
+ * Send a plain text message to an opencode session.
+ */
+async function sendToSession(
+  port: number,
+  repoPath: string,
+  sessionId: string,
+  text: string,
+): Promise<void> {
+  const url = `http://127.0.0.1:${port}/session/${sessionId}/message?directory=${encodeURIComponent(repoPath)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      noReply: false,
+      parts: [{ type: "text", text }],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "unknown");
+    throw new Error(`Failed to send message: ${res.status} ${body.slice(0, 200)}`);
+  }
+}
+
+/**
+ * Use the AI itself to turn the raw ticket description into a better-structured
+ * initial prompt, then send that to the session. Falls back to the raw description.
+ */
+async function generateAndSendImprovedPrompt(
   port: number,
   repoPath: string,
   opencodeSessionId: string,
   description: string,
 ): Promise<void> {
-  const url = `http://127.0.0.1:${port}/session/${opencodeSessionId}/message?directory=${encodeURIComponent(repoPath)}`;
-  const body = {
-    noReply: false,
-    parts: [{ type: "text" as const, text: description }],
-  };
+  const tempLabel = `improve-${crypto.randomUUID().slice(0, 8)}`;
 
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "unknown");
-      console.warn(`Failed to forward description to opencode: ${res.status} ${text.slice(0, 200)}`);
+    // 1. Create a temporary session on the same server
+    const createRes = await fetch(
+      `http://127.0.0.1:${port}/session?directory=${encodeURIComponent(repoPath)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: tempLabel }),
+      },
+    );
+    if (!createRes.ok) throw new Error(`Failed to create temp session: ${createRes.status}`);
+    const { id: tempSessionId } = await createRes.json() as { id: string };
+
+    try {
+      // 2. Build improvement prompt
+      const improvementPrompt = `Rewrite the following task description into a detailed, well-structured prompt for an AI coding assistant.
+
+Original description:
+${description}
+
+Rewritten prompt:`;
+
+      // 3. Send to temp session
+      const msgRes = await fetch(
+        `http://127.0.0.1:${port}/session/${tempSessionId}/message?directory=${encodeURIComponent(repoPath)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parts: [{ type: "text", text: improvementPrompt }],
+          }),
+        },
+      );
+      if (!msgRes.ok) throw new Error(`Failed to send improvement prompt: ${msgRes.status}`);
+
+      // 4. Wait for AI to finish
+      await fetch(
+        `http://127.0.0.1:${port}/api/session/${tempSessionId}/wait`,
+        { method: "POST" },
+      );
+
+      // 5. Read the AI response
+      const msgListRes = await fetch(
+        `http://127.0.0.1:${port}/session/${tempSessionId}/message?directory=${encodeURIComponent(repoPath)}`,
+      );
+      type Msg = { info: { role: string }; parts: Array<{ type: string; text?: string }> };
+      const messages = await msgListRes.json() as Msg[];
+
+      const improved = (Array.isArray(messages) ? messages : [])
+        .filter((m) => m.info?.role === "assistant")
+        .flatMap((m) => m.parts ?? [])
+        .filter((p) => p.type === "text" && p.text)
+        .map((p) => p.text!.trim())
+        .filter(Boolean)
+        .join("\n");
+
+      // 6. Save app-level cost before deleting
+      try {
+        const cost = fetchOpencodeSessionCost(tempSessionId);
+        if (cost) {
+          await db.insert(schema.appCost).values({
+            id: crypto.randomUUID(),
+            type: "improve_prompt",
+            ticketId: null,
+            costUsd: cost.costUsd,
+            totalTokens: cost.totalTokens,
+            createdAt: Date.now(),
+          });
+        }
+      } catch { /* best-effort */ }
+
+      // 7. Send the improved prompt (or original as fallback) to the real session
+      await sendToSession(port, repoPath, opencodeSessionId, improved || description);
+    } finally {
+      // Clean up temp session
+      fetch(
+        `http://127.0.0.1:${port}/session/${tempSessionId}?directory=${encodeURIComponent(repoPath)}`,
+        { method: "DELETE" },
+      ).catch(() => {});
     }
   } catch (err) {
-    console.warn("Failed to forward description to opencode:", err);
+    console.warn("Failed to generate improved prompt, sending raw description:", err);
+    await sendToSession(port, repoPath, opencodeSessionId, description).catch(() => {});
   }
 }
 
@@ -319,7 +414,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
       .set({ opencodeSessionId })
       .where(eq(schema.sessions.id, sessionId));
 
-    // If this is a new session (not reuse), check if we should forward the description
+    // If this is a new session (not reuse), generate/forward the initial prompt
     if (!existingSession && opencodeSessionId) {
       const [settingsRow] = await db
         .select()
@@ -329,7 +424,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
       const forwardEnabled = settingsRow?.forwardDescription ?? true;
       if (forwardEnabled && ticket.description) {
         // Fire-and-forget — don't block the response
-        sendDescriptionToOpencode(port, repo.localPath, opencodeSessionId, ticket.description);
+        generateAndSendImprovedPrompt(port, repo.localPath, opencodeSessionId, ticket.description);
       }
     }
 
