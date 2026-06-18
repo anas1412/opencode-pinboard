@@ -97,17 +97,4 @@ export const repos = sqliteTable("repo", {
   lastUsedAt: integer("last_used_at", { mode: "number" }),
 });
 
-// ─── CostRecord ───────────────────────────────────────────────────────
-
-export const costRecords = sqliteTable("cost_record", {
-  id: text("id").primaryKey(),
-  sessionId: text("session_id").notNull(),
-  ticketId: text("ticket_id").notNull(),
-  repoId: text("repo_id").notNull(),
-  opencodeVersion: text("opencode_version").notNull(),
-  model: text("model").notNull(),
-  promptTokens: integer("prompt_tokens").notNull(),
-  completionTokens: integer("completion_tokens").notNull(),
-  costUsd: real("cost_usd").notNull(),
-  recordedAt: integer("recorded_at", { mode: "number" }).notNull(),
-});
+// ─── CostRecord — REMOVED. opencode is the sole source of truth for costs. ─────

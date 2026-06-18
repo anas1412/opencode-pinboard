@@ -4,7 +4,7 @@ import { useRepos, useDeleteRepo } from "../hooks/useRepos";
 import { useTickets } from "../hooks/useTickets";
 import { useCostSummary } from "../hooks/useCostSummary";
 import AddRepoModal from "./AddRepoModal";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin } from "lucide-react";
 
 export default function Sidebar() {
   const { selectedRepoId, setSelectedRepoId, setSelectedTicketId, setView } = useAppStore();
@@ -20,7 +20,17 @@ export default function Sidebar() {
   return (
     <aside className="w-[220px] min-w-[220px] border-r border-zinc-800 flex flex-col bg-zinc-950">
       <div className="p-4">
-        <h1 className="text-lg font-bold tracking-tight text-white">OpenTack</h1>
+        <button
+          onClick={() => {
+            setSelectedRepoId(null);
+            setSelectedTicketId(null);
+            setView("dashboard");
+          }}
+          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white hover:text-blue-400 transition-colors"
+        >
+          <Pin size={18} className="-rotate-45" />
+          OpenTack
+        </button>
       </div>
 
       {/* Active sessions section — scrollable */}
@@ -63,6 +73,7 @@ export default function Sidebar() {
           onClick={() => {
             setSelectedRepoId(null);
             setSelectedTicketId(null);
+            setView("dashboard");
           }}
           className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
             selectedRepoId === null
@@ -80,6 +91,7 @@ export default function Sidebar() {
               onClick={() => {
                 setSelectedRepoId(repo.id);
                 setSelectedTicketId(null);
+                setView("dashboard");
               }}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors flex-1 min-w-0 ${
                 selectedRepoId === repo.id
@@ -106,22 +118,29 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* Weekly cost */}
+      {/* Cost — compact */}
       <div className="px-4 py-3 border-t border-zinc-800 mt-auto">
-        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">This week</p>
-        <p className="text-sm text-zinc-300 font-mono mt-1">
-          {costs ? `$${costs.weekTotalUsd.toFixed(2)}` : "—"}
-        </p>
-        <p className="text-xs text-zinc-600 font-mono">
-          {costs ? `${costs.weekTotalTokens.toLocaleString()} tokens` : "—"}
-        </p>
-        {costs && costs.sessionCount > 0 && (
-          <p className="text-[11px] text-zinc-700 font-mono mt-0.5">
-            {costs.sessionCount} session{costs.sessionCount !== 1 ? "s" : ""}
-            {costs.ticketCount > 0 && ` · ${costs.ticketCount} ticket${costs.ticketCount !== 1 ? "s" : ""}`}
+        <div className="flex items-baseline justify-between">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Week</p>
+          <p className="text-sm text-zinc-300 font-mono">
+            {costs ? `$${costs.weekTotalUsd.toFixed(2)}` : "—"}
           </p>
-        )}
+        </div>
+        <div className="flex items-baseline justify-between mt-0.5">
+          <p className="text-[11px] text-zinc-600">Tokens</p>
+          <p className="text-[11px] text-zinc-500 font-mono">
+            {costs ? costs.weekTotalTokens.toLocaleString() : "—"}
+          </p>
+        </div>
       </div>
+
+      <button
+        onClick={() => setView("settings")}
+        className="flex items-center gap-2 px-4 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors border-t border-zinc-800"
+      >
+        <Settings2 size={13} />
+        Settings
+      </button>
 
       <AddRepoModal open={addRepoOpen} onClose={() => setAddRepoOpen(false)} />
     </aside>

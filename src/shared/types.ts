@@ -96,21 +96,6 @@ export interface Repo {
   lastUsedAt: number | null;
 }
 
-// ─── CostRecord ───────────────────────────────────────────────────────
-
-export interface CostRecord {
-  id: string;
-  sessionId: string;
-  ticketId: string;
-  repoId: string;
-  opencodeVersion: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  costUsd: number;
-  recordedAt: number;
-}
-
 // ─── API types ────────────────────────────────────────────────────────
 
 export interface ApiError {

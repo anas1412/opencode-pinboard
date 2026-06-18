@@ -1,15 +1,86 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "../../db";
 import { startServer } from "../opencode-manager";
 import { emitSse } from "../sse";
+import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession } from "./cost-utils";
 
 const createSessionSchema = z.object({
   ticketId: z.string().uuid(),
 });
 
 export function registerSessionRoutes(app: FastifyInstance) {
+  // Recent sessions activity feed (across all repos)
+  app.get("/api/sessions/recent", async (req) => {
+    const query = z.object({
+      limit: z.coerce.number().int().min(1).max(50).default(20),
+      repoId: z.string().uuid().optional(),
+    }).parse(req.query);
+
+    // Build the query — join sessions with tickets (+ repos) for metadata
+    const conditions = [];
+    if (query.repoId) conditions.push(eq(schema.tickets.repoId, query.repoId));
+
+    const rows = await db
+      .select({
+        id: schema.sessions.id,
+        ticketId: schema.sessions.ticketId,
+        ticketTitle: schema.tickets.title,
+        repoId: schema.tickets.repoId,
+        repoName: schema.repos.name,
+        model: schema.sessions.model,
+        opencodeSessionId: schema.sessions.opencodeSessionId,
+        totalTokens: schema.sessions.totalTokens,
+        costUsd: schema.sessions.costUsd,
+        createdAt: schema.sessions.createdAt,
+        endedAt: schema.sessions.endedAt,
+        durationMs: schema.sessions.durationMs,
+        exitCode: schema.sessions.exitCode,
+        exitReason: schema.sessions.exitReason,
+      })
+      .from(schema.sessions)
+      .innerJoin(schema.tickets, eq(schema.sessions.ticketId, schema.tickets.id))
+      .innerJoin(schema.repos, eq(schema.tickets.repoId, schema.repos.id))
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(schema.sessions.createdAt))
+      .limit(query.limit);
+
+    // Batch-enrich with real token/cost data from opencode DB
+    const ocDb = getOpencodeDb();
+    if (ocDb) {
+      try {
+        const sessionIds = rows
+          .map((r) => r.opencodeSessionId)
+          .filter((id): id is string => id !== null);
+
+        if (sessionIds.length > 0) {
+          const placeholders = sessionIds.map(() => "?").join(",");
+          const opencodeRows = ocDb
+            .query(
+              `SELECT id, cost, tokens_input + tokens_output as total_tokens
+               FROM session WHERE id IN (${placeholders})`,
+            )
+            .all(...sessionIds) as { id: string; cost: number; total_tokens: number }[];
+
+          const ocMap = new Map(opencodeRows.map((r) => [r.id, r]));
+
+          for (const row of rows) {
+            if (row.opencodeSessionId && ocMap.has(row.opencodeSessionId)) {
+              const oc = ocMap.get(row.opencodeSessionId)!;
+              row.costUsd = oc.cost;
+              row.totalTokens = oc.total_tokens;
+            }
+          }
+        }
+      } finally {
+        ocDb.close();
+      }
+    }
+
+    return rows;
+  });
+
   // List sessions for a ticket
   app.get("/api/tickets/:ticketId/sessions", async (req, reply) => {
     const { ticketId } = req.params as { ticketId: string };
@@ -28,7 +99,14 @@ export function registerSessionRoutes(app: FastifyInstance) {
       .where(eq(schema.sessions.ticketId, ticketId))
       .orderBy(schema.sessions.createdAt);
 
-    return rows.map(deserializeSession);
+    return rows.map((row) => {
+      const s = deserializeSession(row);
+      const enriched = enrichFromOpencode(s.opencodeSessionId ?? null, {
+        costUsd: s.costUsd,
+        totalTokens: s.totalTokens,
+      });
+      return { ...s, costUsd: enriched.costUsd, totalTokens: enriched.totalTokens };
+    });
   });
 
   // Get session
@@ -61,66 +139,65 @@ export function registerSessionRoutes(app: FastifyInstance) {
     if (!repo)
       return reply.status(404).send({ error: "NOT_FOUND", message: "Repo not found" });
 
-    // Check if ticket already has an active (non-ended) session to re-use
-    if (ticket.activeSessionId) {
-      const [existing] = await db
-        .select()
-        .from(schema.sessions)
-        .where(eq(schema.sessions.id, ticket.activeSessionId));
+    // One session per ticket — find any existing session (active or ended)
+    const [existingSession] = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.ticketId, input.ticketId))
+      .limit(1);
 
-      if (existing && existing.exitCode === null) {
-        // Ensure opencode serve is running for this repo
-        let port: number;
-        try {
-          port = await startServer(repo.localPath);
-        } catch (err) {
-          app.log.error({ err }, "Failed to start opencode serve");
-          return reply.status(500).send({
-            error: "SERVER_START_FAILED",
-            message: "Could not start opencode server.",
-          });
-        }
+    let sessionId: string;
+    let opencodeSessionId: string | null = null;
 
-        return {
-          id: existing.id,
-          ticketId: input.ticketId,
-          cwd: repo.localPath,
-          branch: ticket.branch,
-          opencodeSessionId: existing.opencodeSessionId,
-          opencodePort: port,
-        };
+    if (existingSession) {
+      // Reuse — reset end state so it appears active again
+      sessionId = existingSession.id;
+      opencodeSessionId = existingSession.opencodeSessionId;
+
+      // If the opencode session was deleted, clear it so we create a fresh one
+      if (opencodeSessionId && !verifyOpencodeSession(opencodeSessionId)) {
+        app.log.warn({ sessionId, opencodeSessionId }, "Opencode session not found — will create new one");
+        opencodeSessionId = null;
       }
+
+      await db
+        .update(schema.sessions)
+        .set({
+          exitCode: null,
+          exitReason: null,
+          endedAt: null,
+          durationMs: null,
+          createdAt: Date.now(), // bump for timeline sort
+        })
+        .where(eq(schema.sessions.id, sessionId));
+    } else {
+      // Create new session row
+      sessionId = crypto.randomUUID();
+      await db.insert(schema.sessions).values({
+        id: sessionId,
+        ticketId: input.ticketId,
+        opencodeVersion: "latest",
+        model: "unknown",
+        cwd: repo.localPath,
+        branch: ticket.branch,
+        initialPrompt: ticket.description,
+        opencodeSessionId: null,
+        transcript: "[]",
+        diff: "[]",
+        filesChanged: "[]",
+        exitCode: null,
+        exitReason: null,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        createdAt: Date.now(),
+        endedAt: null,
+        durationMs: null,
+        approved: null,
+        revisionNote: null,
+      });
     }
-
-    // No re-usable session — create a new one
-    const sessionId = crypto.randomUUID();
-
-    const session = {
-      id: sessionId,
-      ticketId: input.ticketId,
-      opencodeVersion: "latest",
-      model: "unknown",
-      cwd: repo.localPath,
-      branch: ticket.branch,
-      initialPrompt: ticket.description,
-      opencodeSessionId: null as string | null,
-      transcript: "[]",
-      diff: "[]",
-      filesChanged: "[]",
-      exitCode: null,
-      exitReason: null,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      costUsd: 0,
-      createdAt: Date.now(),
-      endedAt: null,
-      durationMs: null,
-      approved: null,
-      revisionNote: null,
-    };
-
-    await db.insert(schema.sessions).values(session);
 
     // Update ticket status + active session
     await db
@@ -157,51 +234,27 @@ export function registerSessionRoutes(app: FastifyInstance) {
       });
     }
 
-    // Reuse previous opencode session if available (preserves conversation history).
-    // The POST /session API does NOT accept an `id` body field — it always creates
-    // a new session. So we skip the API call and reuse the existing session ID directly.
-    const [prevSession] = await db
-      .select()
-      .from(schema.sessions)
-      .where(
-        and(
-          eq(schema.sessions.ticketId, input.ticketId),
-          isNotNull(schema.sessions.opencodeSessionId),
-        ),
-      )
-      .orderBy(schema.sessions.createdAt)
-      .limit(1);
-
-    if (prevSession?.opencodeSessionId) {
-      // Reuse the existing opencode session — history stays intact
-      const ocSessionId = prevSession.opencodeSessionId;
-      await db
-        .update(schema.sessions)
-        .set({ opencodeSessionId: ocSessionId })
-        .where(eq(schema.sessions.id, sessionId));
-      session.opencodeSessionId = ocSessionId;
-    } else {
-      // No previous session — create a fresh one via opencode's API
+    // Create or reuse opencode session ID (preserves conversation history)
+    if (!opencodeSessionId) {
       try {
-        const ocSessionId = await createOpencodeSession(port, repo.localPath, ticket.title);
-        await db
-          .update(schema.sessions)
-          .set({ opencodeSessionId: ocSessionId })
-          .where(eq(schema.sessions.id, sessionId));
-        session.opencodeSessionId = ocSessionId;
+        opencodeSessionId = await createOpencodeSession(port, repo.localPath, ticket.title);
       } catch (err) {
-        // Non-fatal: session works without opencode session ID,
-        // but messages won't persist across restarts
         app.log.warn({ err, sessionId }, "Could not create opencode session — messages won't persist");
       }
     }
+
+    // Persist opencodeSessionId on the session row (may be the same as before)
+    await db
+      .update(schema.sessions)
+      .set({ opencodeSessionId })
+      .where(eq(schema.sessions.id, sessionId));
 
     return {
       id: sessionId,
       ticketId: input.ticketId,
       cwd: repo.localPath,
       branch: ticket.branch,
-      opencodeSessionId: session.opencodeSessionId,
+      opencodeSessionId,
       opencodePort: port,
     };
   });

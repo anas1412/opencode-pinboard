@@ -39,6 +39,7 @@ export const ticketListQuerySchema = z.object({
   status: z
     .enum(["open", "in_progress", "needs_review", "changes_requested", "resolved", "closed"])
     .optional(),
+  priority: z.enum(["low", "medium", "high", "critical"]).optional(),
   repoId: z.string().uuid().optional(),
   category: z.enum(["feature", "bug", "refactor", "chore", "docs"]).optional(),
   search: z.string().optional(),

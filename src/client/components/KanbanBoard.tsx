@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useTickets } from "../hooks/useTickets";
+import { useMemo, useState, useCallback } from "react";
+import { useTickets, useUpdateTicket } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
 import { useAppStore } from "../store/app";
 import type { Ticket, TicketStatus } from "../../shared/types";
@@ -11,6 +11,28 @@ const COLUMNS: { status: TicketStatus; label: string }[] = [
   { status: "changes_requested", label: "Changes Requested" },
   { status: "resolved", label: "Resolved" },
 ];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "bg-red-500",
+  high: "bg-amber-500",
+  medium: "bg-blue-500",
+  low: "bg-zinc-600",
+};
+
+const PRIORITY_BORDERS: Record<string, string> = {
+  critical: "border-l-red-500",
+  high: "border-l-amber-500",
+  medium: "border-l-blue-500",
+  low: "border-l-zinc-600",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  bug: "bg-red-500/15 text-red-400",
+  feature: "bg-emerald-500/15 text-emerald-400",
+  refactor: "bg-cyan-500/15 text-cyan-400",
+  chore: "bg-zinc-500/15 text-zinc-400",
+  docs: "bg-blue-500/15 text-blue-400",
+};
 
 const STATUS_DOT_COLORS: Record<string, string> = {
   open: "bg-blue-500",
@@ -35,10 +57,17 @@ function TicketCard({
   repoName: string;
   onSelect: (id: string) => void;
 }) {
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData("text/plain", ticket.id);
+    e.dataTransfer.effectAllowed = "move";
+  }, [ticket.id]);
+
   return (
     <button
+      draggable
+      onDragStart={handleDragStart}
       onClick={() => onSelect(ticket.id)}
-      className="w-full text-left bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 hover:border-zinc-600 rounded-lg p-3 transition-colors cursor-pointer space-y-2"
+      className={`w-full text-left bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 hover:border-zinc-600 rounded-lg p-3 transition-colors cursor-grab active:cursor-grabbing space-y-2 border-l-[3px] ${PRIORITY_BORDERS[ticket.priority] || "border-l-zinc-700"}`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-zinc-200 leading-snug line-clamp-2">
@@ -50,18 +79,31 @@ function TicketCard({
         <span className="text-zinc-700">·</span>
         <span className="font-mono">{formatCost(ticket.totalCostUsd)}</span>
       </div>
+      <div className="flex items-center gap-1.5">
+        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium leading-none ${CATEGORY_COLORS[ticket.category] || ""}`}>
+          {ticket.category}
+        </span>
+        <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_COLORS[ticket.priority] || "bg-zinc-600"}`} />
+        <span className="text-[10px] text-zinc-600 capitalize">{ticket.priority}</span>
+      </div>
     </button>
   );
 }
 
 interface KanbanBoardProps {
   repoId?: string;
+  search?: string;
+  status?: string;
+  priority?: string;
+  category?: string;
 }
 
-export default function KanbanBoard({ repoId }: KanbanBoardProps) {
-  const { data, isLoading, isError } = useTickets({ repoId });
+export default function KanbanBoard({ repoId, search, status, priority, category }: KanbanBoardProps) {
+  const { data, isLoading, isError } = useTickets({ repoId, search, status, priority, category });
   const { data: repos } = useRepos();
   const { setSelectedTicketId } = useAppStore();
+  const updateTicket = useUpdateTicket();
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
   const repoMap = useMemo(
     () => new Map(repos?.map((r) => [r.id, r.name]) ?? []),
@@ -78,6 +120,24 @@ export default function KanbanBoard({ repoId }: KanbanBoardProps) {
     }
     return map;
   }, [data]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCol(status);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverCol(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const ticketId = e.dataTransfer.getData("text/plain");
+    if (!ticketId) return;
+    updateTicket.mutate({ id: ticketId, input: { status: newStatus as TicketStatus } });
+  }, [updateTicket]);
 
   if (isLoading) {
     return (
@@ -125,6 +185,7 @@ export default function KanbanBoard({ repoId }: KanbanBoardProps) {
     <div className="flex gap-4 h-full overflow-x-auto pb-4">
       {COLUMNS.map((col) => {
         const tickets = grouped[col.status] ?? [];
+        const isOver = dragOverCol === col.status;
 
         return (
           <div key={col.status} className="flex-1 min-w-[220px] flex flex-col">
@@ -137,8 +198,15 @@ export default function KanbanBoard({ repoId }: KanbanBoardProps) {
               <span className="text-xs text-zinc-600 font-mono">{tickets.length}</span>
             </div>
 
-            {/* Cards */}
-            <div className="flex-1 space-y-2 overflow-y-auto">
+            {/* Cards — droppable zone */}
+            <div
+              onDragOver={(e) => handleDragOver(e, col.status)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col.status)}
+              className={`flex-1 space-y-2 overflow-y-auto rounded-lg transition-colors ${
+                isOver ? "bg-zinc-800/50 ring-1 ring-blue-500/30" : ""
+              }`}
+            >
               {tickets.map((ticket) => (
                 <TicketCard
                   key={ticket.id}
@@ -147,6 +215,11 @@ export default function KanbanBoard({ repoId }: KanbanBoardProps) {
                   onSelect={setSelectedTicketId}
                 />
               ))}
+              {tickets.length === 0 && (
+                <div className={`h-24 rounded-lg border-2 border-dashed transition-colors ${
+                  isOver ? "border-blue-500/40 bg-blue-500/5" : "border-zinc-800"
+                }`} />
+              )}
             </div>
           </div>
         );

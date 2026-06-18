@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useTicket, useUpdateTicket, useDeleteTicket } from "../hooks/useTickets";
+import { useTicket, useUpdateTicket, useDeleteTicket, useTicketSessions } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
 import { useAppStore } from "../store/app";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
@@ -24,6 +24,7 @@ interface TicketDetailProps {
 export default function TicketDetail({ ticketId, onStartSession, sessionActive }: TicketDetailProps) {
   const { data: ticket, isLoading, isError } = useTicket(ticketId);
   const { data: repos } = useRepos();
+  const { data: sessions } = useTicketSessions(ticketId);
   const updateTicket = useUpdateTicket();
   const deleteTicket = useDeleteTicket();
   const { setSelectedTicketId } = useAppStore();
@@ -217,19 +218,38 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
           )}
         </div>
 
-        {/* Sessions */}
+        {/* Session (one per ticket) */}
         <div>
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">
-            Sessions ({ticket.sessionIds.length})
+            Session
           </p>
-          {ticket.sessionIds.length === 0 ? (
-            <p className="text-xs text-zinc-600 italic">No sessions yet</p>
+          {sessions && sessions.length > 0 ? (
+            (() => {
+              const s = sessions[0];
+              const isActive = s.exitCode === null;
+              return (
+                <div className="bg-zinc-800/30 rounded-lg px-3 py-2 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-green-400" : "bg-zinc-500"}`} />
+                      <span className="text-zinc-300 font-medium">{isActive ? "Active" : s.id.slice(0, 8)}</span>
+                    </span>
+                    {s.model && s.model !== "unknown" && (
+                      <span className="text-zinc-600 font-mono">{s.model}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-zinc-600">
+                    <span>{s.totalTokens.toLocaleString()} tokens</span>
+                    {s.costUsd > 0 && <span>${s.costUsd.toFixed(2)}</span>}
+                    {s.durationMs !== null && (
+                      <span>{Math.round(s.durationMs / 60000)}m</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()
           ) : (
-            <div className="space-y-1">
-              {ticket.sessionIds.map((sid) => (
-                <div key={sid} className="text-xs text-zinc-500 font-mono">{sid.slice(0, 8)}...</div>
-              ))}
-            </div>
+            <p className="text-xs text-zinc-600 italic">No session yet</p>
           )}
         </div>
       </div>
@@ -283,7 +303,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
         </select>
       </div>
 
-      {/* Row: Priority + Category */}
+      {/* Row: Priority */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">Priority</label>
@@ -297,17 +317,10 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             ))}
           </select>
         </div>
-        <div>
-          <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1 block">Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as TicketCategory)}
-            className="w-full bg-zinc-800/50 border border-zinc-800 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700"
-          >
-            {TICKET_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+        <div className="flex items-end pb-2">
+          <span className="flex items-center gap-2 text-xs text-zinc-600">
+            <span className="text-zinc-500 uppercase font-medium">{ticket.category}</span>
+          </span>
         </div>
       </div>
 

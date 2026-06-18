@@ -1,12 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchTickets, fetchTicket, createTicket, updateTicket, deleteTicket } from "../api/tickets";
+import {
+  fetchTickets, fetchTicket, createTicket, updateTicket, deleteTicket,
+  fetchTicketSessions, batchUpdateTickets, batchDeleteTickets,
+} from "../api/tickets";
 import type { TicketCreateInput, TicketUpdateInput } from "../../shared/types";
 
 // ─── Queries ──────────────────────────────────────────────────────────
 
 export function useTickets(params?: {
   status?: string;
+  priority?: string;
   repoId?: string;
+  category?: string;
   search?: string;
 }) {
   return useQuery({
@@ -21,6 +26,14 @@ export function useTicket(id: string | null) {
     queryKey: ["ticket", id],
     queryFn: () => fetchTicket(id!),
     enabled: !!id,
+  });
+}
+
+export function useTicketSessions(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["ticket", ticketId, "sessions"],
+    queryFn: () => fetchTicketSessions(ticketId!),
+    enabled: !!ticketId,
   });
 }
 
@@ -53,6 +66,29 @@ export function useDeleteTicket() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteTicket(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+}
+
+// ─── Batch mutations ───────────────────────────────────────────────────
+
+export function useBatchUpdateTickets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, input }: { ids: string[]; input: TicketUpdateInput }) =>
+      batchUpdateTickets(ids, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+}
+
+export function useBatchDeleteTickets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => batchDeleteTickets(ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tickets"] });
     },

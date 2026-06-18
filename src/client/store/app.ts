@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type View = "list" | "kanban" | "settings";
+type View = "dashboard" | "list" | "kanban" | "settings";
 
 interface AppState {
   view: View;
@@ -14,7 +14,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  view: "list",
+  view: "dashboard",
   setView: (view) => set({ view }),
   createOpen: false,
   setCreateOpen: (open) => set({ createOpen: open }),

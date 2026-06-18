@@ -15,6 +15,13 @@
       "when": 1781880000000,
       "tag": "0001_add_opencode_session_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781775124929,
+      "tag": "0002_absurd_jazinda",
+      "breakpoints": true
     }
   ]
 }

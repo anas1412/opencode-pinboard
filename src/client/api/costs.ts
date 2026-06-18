@@ -5,12 +5,26 @@ export interface CostSummary {
   weekTotalTokens: number;
   sessionCount: number;
   ticketCount: number;
-  breakdown: {
-    opentack: { usd: number; tokens: number };
-    opencode: { usd: number; tokens: number };
-  };
+  perRepo: {
+    repoId: string;
+    repoName: string;
+    usd: number;
+    tokens: number;
+    sessionCount: number;
+  }[];
 }
 
 export function fetchCostSummary(): Promise<CostSummary> {
   return apiFetch("/api/costs/summary");
+}
+
+export interface CostHistoryEntry {
+  date: string;
+  totalUsd: number;
+  totalTokens: number;
+  sessionCount: number;
+}
+
+export function fetchCostHistory(): Promise<CostHistoryEntry[]> {
+  return apiFetch("/api/costs/history");
 }

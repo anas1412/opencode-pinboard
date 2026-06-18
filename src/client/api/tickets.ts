@@ -14,6 +14,7 @@ interface TicketListResponse {
 
 interface TicketListParams {
   status?: string;
+  priority?: string;
   repoId?: string;
   category?: string;
   search?: string;
@@ -24,6 +25,7 @@ interface TicketListParams {
 export function fetchTickets(params?: TicketListParams): Promise<TicketListResponse> {
   const searchParams = new URLSearchParams();
   if (params?.status) searchParams.set("status", params.status);
+  if (params?.priority) searchParams.set("priority", params.priority);
   if (params?.repoId) searchParams.set("repoId", params.repoId);
   if (params?.category) searchParams.set("category", params.category);
   if (params?.search) searchParams.set("search", params.search);
@@ -54,6 +56,24 @@ export function updateTicket(id: string, input: TicketUpdateInput): Promise<Tick
 
 export function deleteTicket(id: string): Promise<void> {
   return apiFetch(`/api/tickets/${id}`, { method: "DELETE" });
+}
+
+export function batchUpdateTickets(ids: string[], input: TicketUpdateInput): Promise<void> {
+  return apiFetch("/api/tickets/batch/update", {
+    method: "POST",
+    body: JSON.stringify({ ids, input }),
+  });
+}
+
+export function batchDeleteTickets(ids: string[]): Promise<void> {
+  return apiFetch("/api/tickets/batch/delete", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function fetchTicketSessions(ticketId: string): Promise<import("../../shared/types").Session[]> {
+  return apiFetch(`/api/tickets/${ticketId}/sessions`);
 }
 
 export function createTicketSession(ticketId: string): Promise<{
