@@ -7,6 +7,7 @@ import { useAppStore } from "../store/app";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_CATEGORIES } from "../../shared/types";
 import { Clock, GitBranch, DollarSign, FileCode, Pencil, X, Trash2, Check } from "lucide-react";
+import GitToolbar from "./GitToolbar";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -21,9 +22,10 @@ interface TicketDetailProps {
   ticketId: string;
   onStartSession: () => void;
   sessionActive: boolean;
+  sessionId: string | null;
 }
 
-export default function TicketDetail({ ticketId, onStartSession, sessionActive }: TicketDetailProps) {
+export default function TicketDetail({ ticketId, onStartSession, sessionActive, sessionId }: TicketDetailProps) {
   const { data: ticket, isLoading, isError } = useTicket(ticketId);
   const { data: repos } = useRepos();
   const { data: sessions } = useTicketSessions(ticketId);
@@ -120,7 +122,8 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
   // ── READ MODE ──
   if (!editing) {
     return (
-      <div className="p-4 space-y-4 overflow-auto h-full">
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -279,12 +282,17 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
           )}
         </div>
       </div>
+      {sessionActive && sessionId && (
+        <GitToolbar sessionId={sessionId} />
+      )}
+    </div>
     );
   }
 
   // ── EDIT MODE ──
   return (
-    <div className="p-4 space-y-4 overflow-auto h-full">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Edit ticket</p>
         <div className="flex items-center gap-1">
@@ -403,6 +411,10 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             Cancel
           </button>
         </div>
+      )}
+      </div>
+      {sessionActive && sessionId && (
+        <GitToolbar sessionId={sessionId} />
       )}
     </div>
   );

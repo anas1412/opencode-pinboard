@@ -29,3 +29,10 @@ export function fetchRecentSessions(params?: RecentSessionsParams): Promise<Rece
   const qs = searchParams.toString();
   return apiFetch(`/api/sessions/recent${qs ? `?${qs}` : ""}`);
 }
+
+export function sendSessionMessage(sessionId: string, text: string): Promise<{ success: boolean }> {
+  return apiFetch(`/api/sessions/${sessionId}/send-message`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
