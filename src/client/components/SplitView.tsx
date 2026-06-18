@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "../store/app";
 import TicketDetail from "./TicketDetail";
@@ -32,54 +32,43 @@ export default function SplitView() {
       ? `http://127.0.0.1:${opencodePort}/${encodeDirSlug(cwd)}/session/${opencodeSessionId}`
       : null;
 
-  // Track previous ticket to reset state when switching
-  const prevTicketRef = useRef(selectedTicketId);
+  // On ticket switch: don't reset iframe URL state (keeps the iframe alive).
+  // Reset only sessionId (for stop) + phase. Overlays hide the transition.
   useEffect(() => {
-    if (prevTicketRef.current !== selectedTicketId) {
-      setSessionId(null);
-      setOpencodePort(null);
-      setCwd(null);
-      setOpencodeSessionId(null);
-      setPhase("idle");
-      setError(null);
-      prevTicketRef.current = selectedTicketId;
-    }
-  }, [selectedTicketId]);
+    if (!selectedTicketId) return;
 
-  // Auto-resume active session on mount or ticket switch
-  // IMPORTANT: `phase` is deliberately NOT in deps — including it would cause the
-  // effect cleanup (cancelled = true) to fire when we call setPhase("starting"),
-  // which kills the in-flight async before it can set phase to "active".
-  useEffect(() => {
-    if (!selectedTicketId || phase !== "idle") return;
+    setSessionId(null);
+    setPhase("starting");
+    setError(null);
 
-    let cancelled = false;
+    let active = true;
+
     (async () => {
       try {
         const ticket = await fetchTicket(selectedTicketId);
-        if (cancelled) return;
+        if (!active) return;
 
         if (ticket.activeSessionId) {
-          setPhase("starting");
-          setError(null);
           const session = await createTicketSession(selectedTicketId);
-          if (cancelled) return;
+          if (!active) return;
           setSessionId(session.id);
           setOpencodePort(session.opencodePort);
           setCwd(session.cwd);
           setOpencodeSessionId(session.opencodeSessionId ?? null);
           setPhase("active");
           queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        } else {
+          setPhase("idle");
         }
       } catch (err) {
-        if (!cancelled) {
+        if (active) {
           setError(err instanceof Error ? err.message : "Could not resume session");
           setPhase("idle");
         }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { active = false; };
   }, [selectedTicketId, queryClient]);
 
   const handleStartSession = useCallback(async () => {
@@ -109,6 +98,9 @@ export default function SplitView() {
       // ignore
     }
     setPhase("stopped");
+    setOpencodePort(null);
+    setCwd(null);
+    setOpencodeSessionId(null);
     queryClient.invalidateQueries({ queryKey: ["tickets"] });
   }, [sessionId, queryClient]);
 
@@ -118,37 +110,51 @@ export default function SplitView() {
 
   if (!selectedTicketId) return null;
 
-  // ── Starting ──
+  const sessionActive = phase === "active";
+
+  // Overlay content for the right panel
+  let overlay: React.ReactNode = null;
   if (phase === "starting") {
-    return (
-      <div className="flex h-full">
-        <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-          <HeaderBar onBack={handleBack} />
-          <div className="flex-1 overflow-hidden">
-            <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={false} />
-          </div>
+    overlay = (
+      <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-10">
+        <div className="text-center space-y-4">
+          <Loader2 size={24} className="mx-auto animate-spin text-blue-400" />
+          <p className="text-sm text-zinc-400">Starting opencode...</p>
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <Loader2 size={24} className="mx-auto animate-spin text-blue-400" />
-            <p className="text-sm text-zinc-400">Starting opencode...</p>
-          </div>
+      </div>
+    );
+  } else if (phase === "stopped") {
+    overlay = (
+      <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 z-10">
+        <div className="text-center space-y-4">
+          <p className="text-sm text-zinc-400">Session ended.</p>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium text-zinc-300 transition-colors"
+          >
+            <ArrowLeft size={14} />
+            Back to tickets
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Active session (shows opencode web UI for the repo) ──
-  if (phase === "active" && opencodeUrl) {
-    return (
-      <div className="flex h-full">
-        <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-          <HeaderBar onBack={handleBack} />
-          <div className="flex-1 overflow-hidden">
-            <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={true} />
-          </div>
+  return (
+    <div className="flex h-full">
+      {/* ── LEFT: ticket detail panel ── */}
+      <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
+        <HeaderBar onBack={handleBack} />
+        <div className="flex-1 overflow-hidden">
+          <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={sessionActive} />
         </div>
-        <div className="flex-1 flex flex-col bg-zinc-950">
+      </div>
+
+      {/* ── RIGHT: opencode panel ── */}
+      <div className="flex-1 flex flex-col bg-zinc-950">
+        {/* Top bar — only when we have an active/starting session with a URL */}
+        {opencodeUrl && (
           <div className="flex items-center justify-between px-4 border-b border-zinc-800 bg-zinc-950 h-9">
             <span className="text-xs text-zinc-500 font-mono">
               opencode · port {opencodePort}
@@ -172,68 +178,38 @@ export default function SplitView() {
               </button>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+        )}
+
+        {/* Body */}
+        <div className="flex-1 min-h-0 relative">
+          {/* iframe — always mounted when URL exists */}
+          {opencodeUrl && (
             <iframe
               src={opencodeUrl}
               className="w-full h-full border-0"
               title="opencode"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
-          </div>
-        </div>
-      </div>
-    );
-  }
+          )}
 
-  // ── Session ended ──
-  if (phase === "stopped") {
-    return (
-      <div className="flex h-full">
-        <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-          <HeaderBar onBack={handleBack} />
-          <div className="flex-1 overflow-hidden">
-            <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={false} />
-          </div>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <p className="text-sm text-zinc-400">Session ended.</p>
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <button
-              onClick={handleBack}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium text-zinc-300 transition-colors"
-            >
-              <ArrowLeft size={14} />
-              Back to tickets
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+          {/* Overlay during transitions */}
+          {overlay}
 
-  // ── Idle / error — before session starts ──
-  return (
-    <div className="flex h-full">
-      <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-        <HeaderBar onBack={handleBack} />
-        <div className="flex-1 overflow-hidden">
-          <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={false} />
-        </div>
-      </div>
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-sm text-zinc-400">
-            opencode will start working on this ticket
-          </p>
-          {error && <p className="text-xs text-red-400 max-w-sm">{error}</p>}
-            <button
-              onClick={handleStartSession}
-              className="btn-primary-lg"
-            >
-              <Play size={16} />
-              Start session
-            </button>
+          {/* Idle / error — no URL yet */}
+          {!opencodeUrl && !overlay && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center space-y-4">
+                <p className="text-sm text-zinc-400">
+                  opencode will start working on this ticket
+                </p>
+                {error && <p className="text-xs text-red-400 max-w-sm">{error}</p>}
+                <button onClick={handleStartSession} className="btn-primary-lg">
+                  <Play size={16} />
+                  Start session
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

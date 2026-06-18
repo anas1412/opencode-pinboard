@@ -4,7 +4,7 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { db, schema } from "../../db";
-import { startServer } from "../opencode-manager";
+import { startSessionServer, stopSessionServer } from "../opencode-manager";
 import { emitSse } from "../sse";
 import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession } from "./cost-utils";
 
@@ -268,10 +268,10 @@ export function registerSessionRoutes(app: FastifyInstance) {
     // Emit SSE event
     emitSse({ type: "session.started", sessionId, ticketId: input.ticketId });
 
-    // Start opencode serve for the repo (idempotent if already running)
+    // Start opencode serve for this session (one server per session for parallel isolation)
     let port: number;
     try {
-      port = await startServer(repo.localPath);
+      port = await startSessionServer(sessionId, repo.localPath);
     } catch (err) {
       app.log.error({ err, sessionId }, "Failed to start opencode server");
       await db
@@ -364,6 +364,9 @@ export function registerSessionRoutes(app: FastifyInstance) {
       .update(schema.tickets)
       .set({ activeSessionId: null, updatedAt: Date.now() })
       .where(eq(schema.tickets.id, session.ticketId));
+
+    // Kill the per-session opencode serve process (free port)
+    stopSessionServer(id);
 
     emitSse({ type: "session.stopped", sessionId: id, ticketId: session.ticketId });
 

@@ -9,7 +9,7 @@ import {
   updateOpencodeSessionTitle,
   deleteOpencodeSession,
 } from "./cost-utils";
-import { startServer } from "../opencode-manager";
+import { startSessionServer, stopSessionServer } from "../opencode-manager";
 import { z } from "zod";
 
 export function registerTicketRoutes(app: FastifyInstance) {
@@ -261,9 +261,10 @@ export function registerTicketRoutes(app: FastifyInstance) {
     if (!repo)
       return reply.status(404).send({ error: "NOT_FOUND", message: "Repo not found" });
 
+    const notesSessionId = `notes-${crypto.randomUUID()}`;
     let port: number;
     try {
-      port = await startServer(repo.localPath);
+      port = await startSessionServer(notesSessionId, repo.localPath);
     } catch {
       return reply.status(500).send({
         error: "SERVER_START_FAILED",
@@ -271,6 +272,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
       });
     }
 
+    try {
     // Get the opencode session messages to build a transcript
     if (!session.opencodeSessionId) {
       return reply.status(400).send({
@@ -394,6 +396,9 @@ ${transcriptText}
         error: "GENERATE_FAILED",
         message: err instanceof Error ? err.message : "Failed to generate notes",
       });
+    }
+    } finally {
+      stopSessionServer(notesSessionId);
     }
   });
 

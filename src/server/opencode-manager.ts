@@ -3,23 +3,25 @@ import { spawn, type ChildProcess } from "child_process";
 interface ServerInstance {
   proc: ChildProcess;
   port: number;
+  sessionId: string;
   repoPath: string;
 }
 
-// One opencode serve process per repo path
+// One opencode serve process per session — isolates web UI origins for parallel use
 const servers = new Map<string, ServerInstance>();
 
 /**
- * Start (or return existing) opencode serve for a repo directory.
+ * Start (or return existing) opencode serve for a session.
+ * Each session gets its own process on a unique OS-assigned port.
  * Waits until the server is listening before resolving.
  */
-export async function startServer(repoPath: string): Promise<number> {
-  const existing = servers.get(repoPath);
+export async function startSessionServer(sessionId: string, repoPath: string): Promise<number> {
+  const existing = servers.get(sessionId);
   if (existing && existing.proc.exitCode === null) {
     return existing.port;
   }
   // Clean up dead entry
-  if (existing) servers.delete(repoPath);
+  if (existing) servers.delete(sessionId);
 
   return new Promise((resolve, reject) => {
     const proc = spawn("opencode", ["serve", "--port", "0"], {
@@ -43,7 +45,7 @@ export async function startServer(repoPath: string): Promise<number> {
         resolved = true;
         clearTimeout(timeout);
         const port = parseInt(match[1], 10);
-        servers.set(repoPath, { proc, port, repoPath });
+        servers.set(sessionId, { proc, port, sessionId, repoPath });
         resolve(port);
       }
     };
@@ -60,26 +62,26 @@ export async function startServer(repoPath: string): Promise<number> {
     });
 
     proc.on("exit", () => {
-      servers.delete(repoPath);
+      servers.delete(sessionId);
     });
   });
 }
 
-/** Kill the opencode serve for a repo path */
-export function stopServer(repoPath: string): void {
-  const inst = servers.get(repoPath);
+/** Kill the opencode serve for a session */
+export function stopSessionServer(sessionId: string): void {
+  const inst = servers.get(sessionId);
   if (inst && inst.proc.exitCode === null) {
     inst.proc.kill("SIGTERM");
     setTimeout(() => {
       if (inst.proc.exitCode === null) inst.proc.kill("SIGKILL");
     }, 3000);
   }
-  servers.delete(repoPath);
+  servers.delete(sessionId);
 }
 
 /** Kill all running servers (call on shutdown) */
 export function stopAll(): void {
-  for (const [path, inst] of servers) {
+  for (const [, inst] of servers) {
     if (inst.proc.exitCode === null) {
       inst.proc.kill("SIGTERM");
     }
@@ -87,7 +89,7 @@ export function stopAll(): void {
   servers.clear();
 }
 
-/** Get the port for a running server, or undefined */
-export function getPort(repoPath: string): number | undefined {
-  return servers.get(repoPath)?.port;
+/** Get the port for a running session's server, or undefined */
+export function getSessionPort(sessionId: string): number | undefined {
+  return servers.get(sessionId)?.port;
 }
