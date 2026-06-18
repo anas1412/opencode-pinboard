@@ -2,9 +2,7 @@
 
 **Track your opencode work like a pro — without leaving your browser.**
 
-OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anas1412/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
-
-![screenshot](https://github.com/anas1412/opentack/raw/main/docs/screenshot.png)
+OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
 
 ## Why?
 
@@ -20,20 +18,20 @@ OpenTack gives you a simple browser interface to answer all of that. Think of it
 
 OpenTack runs entirely on your machine. Nothing leaves your computer.
 
-1. **You add repos** — point OpenTack at any local Git repo
-2. **You create tickets** — each ticket is a task or feature you want to work on
-3. **You start a session** — OpenTack fires up opencode's web UI inside your browser, linked to that ticket
-4. **You code** — talk to opencode through its own interface, right in the panel next to your ticket
-5. **You track** — see your active sessions, weekly costs, and history all in one place
+1. **Add repos** — point OpenTack at any local Git repo, or clone from GitHub
+2. **Create tickets** — give each ticket a title, description, priority, category, and repo
+3. **Start a session** — OpenTack fires up opencode's web UI in a split panel, linked to that ticket
+4. **Code** — talk to opencode in the right panel while viewing ticket details on the left
+5. **Track** — see active sessions, weekly costs, activity history, and more
 
-When you're done, stop the session. Want to pick it back up later? Start a new session — the full conversation history is still there.
+Switch between **Overview** (dashboard with stats, cost charts, activity timeline), **List** (filterable table), and **Board** (drag-and-drop Kanban). Each ticket tracks its session history, token usage, and cost automatically.
 
 ## Quick start
 
 ### Prerequisites
 
 - [Bun](https://bun.sh) (JavaScript runtime)
-- [opencode](https://github.com/anas1412/opencode) (the AI coding agent)
+- [opencode](https://github.com/anomalyco/opencode) (the AI coding agent)
 
 ### Install
 
@@ -54,22 +52,29 @@ bun install
 # Run database migrations
 bun run db:migrate
 
-# Build the frontend
+# Build the frontend and server
 bun run build
-```
 
-### Run
-
-```bash
+# Start
 bun run dev
 ```
 
 Open **http://localhost:3000** in your browser.
 
+### CLI
+
+```bash
+# After building, you can also run it directly:
+./dist/server/cli.js
+# Or if linked globally:
+opentack
+# Set a custom port:
+OPENTACK_PORT=4000 opentack
+```
+
 ### Update
 
 ```bash
-# From the opentack directory:
 git pull
 bun install
 bun run db:migrate
@@ -79,8 +84,6 @@ bun run build
 ### Uninstall
 
 ```bash
-# From the opentack directory:
-# (keeps bun and opencode, only removes OpenTack)
 cd ..
 rm -rf opentack
 rm -rf ~/.opentack
@@ -88,7 +91,7 @@ rm -rf ~/.opentack
 
 ### Add a repo
 
-Click the **+** button in the sidebar. You have two options:
+Click the **+** button in the sidebar under Repos. You have two options:
 
 **Local folder** — pick any local Git repository. OpenTack detects the repo name and branch automatically.
 
@@ -108,25 +111,38 @@ Click the **+** button in the sidebar. You have two options:
 
 ### Create a ticket
 
-Click **New ticket**, give it a title and description, and assign it to a repo.
+Click **New ticket**, give it a title, description, priority, category, and assign it to a repo.
 
 ### Start working
 
-Click **Start session**. OpenTack will launch opencode's web UI in the right panel. Every message you send is saved to the ticket's session history.
+Click **Start session**. OpenTack launches opencode's web UI in the right panel. Every message is saved to the ticket's session history. Stop the session when done; resume it later from where you left off.
+
+## Views
+
+| View | Description |
+|---|---|
+| **Overview** | Dashboard with stat cards, daily usage chart (30 days), recent tickets, activity timeline, and per-repo cost breakdown |
+| **List** | Filterable ticket table with search, status, priority, and category filters |
+| **Board** | Drag-and-drop Kanban with columns: Open, In Progress, Needs Review, Changes Requested, Resolved |
+| **Settings** | Theme picker (amber/emerald/violet/sky), default opencode model, forward-description toggle, per-repo environment variables |
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `bun run dev` | Start the server (default port 3000) |
-| `bun run build` | Build everything for production |
+| `bun run build` | Build client + server for production |
+| `bun run build:client` | Build only the frontend (Vite) |
+| `bun run build:server` | Build only the server (Bun bundle) |
 | `bun run db:migrate` | Apply database migrations |
+| `bun run db:generate` | Generate migrations from schema |
 | `bun run typecheck` | Type-check the codebase |
+| `bun test` | Run tests |
 
 ## Tech stack
 
-- **Frontend**: React 19, Tailwind CSS 4, Vite
-- **Backend**: Fastify (Bun runtime)
+- **Frontend**: React 19, Tailwind CSS 4, Vite, zustand, TanStack Query, TanStack Router, lucide-react
+- **Backend**: Fastify 5 (Bun runtime)
 - **Database**: SQLite via Drizzle ORM
 - **AI**: Powered by opencode
 
