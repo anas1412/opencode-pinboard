@@ -149,7 +149,7 @@ export default function SplitView() {
           </div>
         </div>
         <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-950">
+          <div className="flex items-center justify-between px-4 border-b border-zinc-800 bg-zinc-950 h-9">
             <span className="text-xs text-zinc-500 font-mono">
               opencode · port {opencodePort}
             </span>
@@ -243,7 +243,7 @@ export default function SplitView() {
 /** Shared back button bar for the left panel */
 function HeaderBar({ onBack }: { onBack: () => void }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
+    <div className="flex items-center justify-between px-3 border-b border-zinc-800 h-9">
       <button
         onClick={onBack}
         className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
