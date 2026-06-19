@@ -13,6 +13,7 @@ import {
   fetchOpencodeSessionCost,
 } from "./cost-utils";
 import { startSessionServer, stopSessionServer } from "../opencode-manager";
+import { emitSse } from "../sse";
 import { z } from "zod";
 
 export function registerTicketRoutes(app: FastifyInstance) {
@@ -64,6 +65,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
     };
 
     await db.insert(schema.tickets).values(ticket);
+    emitSse({ type: "ticket.created", ticketId: id });
     return deserializeTicket(ticket);
   });
 
@@ -220,6 +222,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
     }
 
     const [row] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, id));
+    emitSse({ type: "ticket.updated", ticketId: id });
     return deserializeTicket(row!);
   });
 
@@ -238,6 +241,7 @@ export function registerTicketRoutes(app: FastifyInstance) {
     await db.delete(schema.sessions).where(eq(schema.sessions.ticketId, id));
 
     await db.delete(schema.tickets).where(eq(schema.tickets.id, id));
+    emitSse({ type: "ticket.deleted", ticketId: id });
     return reply.status(204).send();
   });
 
@@ -446,6 +450,7 @@ ${transcriptText}
     if (body.input.status === "resolved") update.resolvedAt = Date.now();
 
     await db.update(schema.tickets).set(update).where(inArray(schema.tickets.id, body.ids));
+    for (const id of body.ids) emitSse({ type: "ticket.updated", ticketId: id });
     return reply.status(204).send();
   });
 
@@ -465,6 +470,7 @@ ${transcriptText}
     }
     await db.delete(schema.sessions).where(inArray(schema.sessions.ticketId, body.ids));
     await db.delete(schema.tickets).where(inArray(schema.tickets.id, body.ids));
+    for (const id of body.ids) emitSse({ type: "ticket.deleted", ticketId: id });
     return reply.status(204).send();
   });
 }

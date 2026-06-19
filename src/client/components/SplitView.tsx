@@ -115,13 +115,19 @@ export default function SplitView() {
       if (session.forwardEnabled) {
         setOverlayText("creating your prompt");
         await improveSessionPrompt(session.id);
-        // Poll until the background improvement finishes
-        while (true) {
-          const res = await fetch(`/api/sessions/${session.id}/improving`);
-          const { improving } = await res.json();
-          if (!improving) break;
-          await new Promise((r) => setTimeout(r, 1000));
-        }
+        // Wait for session.improving_done SSE event (or 30s timeout fallback)
+        await new Promise<void>((resolve) => {
+          const es = new EventSource("/events");
+          const timer = setTimeout(() => { es.close(); resolve(); }, 30000);
+          es.addEventListener("session.improving_done", (e: MessageEvent) => {
+            const data = JSON.parse(e.data);
+            if (data.sessionId === session.id) {
+              clearTimeout(timer);
+              es.close();
+              resolve();
+            }
+          });
+        });
       }
 
       setOverlayText(null);

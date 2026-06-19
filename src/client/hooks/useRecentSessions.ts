@@ -5,6 +5,5 @@ export function useRecentSessions(params?: RecentSessionsParams) {
   return useQuery({
     queryKey: ["sessions", "recent", params],
     queryFn: () => fetchRecentSessions(params),
-    refetchInterval: 30_000,
   });
 }

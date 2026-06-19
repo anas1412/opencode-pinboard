@@ -483,13 +483,18 @@ export function registerSessionRoutes(app: FastifyInstance) {
 
     improvingSessions.set(id, true);
 
+    const onDone = () => {
+      improvingSessions.set(id, false);
+      emitSse({ type: "session.improving_done", sessionId: id, ticketId: session.ticketId });
+    };
+
     generateAndSendImprovedPrompt(
       port,
       session.cwd,
       session.opencodeSessionId,
       ticket.description,
-      () => improvingSessions.set(id, false),
-    ).catch(() => improvingSessions.set(id, false));
+      onDone,
+    ).catch(() => onDone());
 
     return { improving: true };
   });

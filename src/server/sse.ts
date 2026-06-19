@@ -4,7 +4,11 @@ export type SseEvent =
   | { type: "session.started"; sessionId: string; ticketId: string }
   | { type: "session.stopped"; sessionId: string; ticketId: string }
   | { type: "session.ended"; sessionId: string; ticketId: string; exitCode: number | null }
-  | { type: "session.cost"; sessionId: string; costUsd: number; tokens: number }
+  | { type: "session.cost"; sessionId: string; ticketId: string; costUsd: number; tokens: number }
+  | { type: "session.improving_done"; sessionId: string; ticketId: string }
+  | { type: "ticket.created"; ticketId: string }
+  | { type: "ticket.updated"; ticketId: string }
+  | { type: "ticket.deleted"; ticketId: string }
   | { type: "session.file_changed"; sessionId: string; file: string }
   | { type: "pr.created"; sessionId: string; ticketId: string; prUrl: string }
   | { type: "ticket.resolved"; ticketId: string }
