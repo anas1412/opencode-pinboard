@@ -1,7 +1,7 @@
 # OpenTack
 
 <p align="center">
-  <img src="./opentack_logo.png" alt="OpenTack logo" width="400">
+  <img src="./public/opentack-logo.png" alt="OpenTack logo" width="400">
 </p>
 
 **Track your opencode work like a pro — without leaving your browser.**
