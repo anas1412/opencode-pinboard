@@ -75,7 +75,11 @@ async function buildApp() {
 /**
  * On startup, recover orphaned sessions that were left running when OpenTack crashed.
  * Scans sessions with no endedAt, checks if the original PID+port is still alive,
- * and re-registers healthy ones in the in-memory server map. Cleans up dead ones.
+ * and re-registers healthy ones in the in-memory server map.
+ *
+ * Sessions without PID/port (pre-migration or where save failed) are left as-is —
+ * we can't verify their state, so we don't touch them. The user can stop them manually.
+ * Only sessions with a confirmed-dead process get cleaned up.
  */
 async function recoverOrphanedSessions() {
   const active = await db
@@ -85,6 +89,7 @@ async function recoverOrphanedSessions() {
 
   let recovered = 0;
   let cleaned = 0;
+  let skipped = 0;
 
   for (const session of active) {
     if (session.pid != null && session.serverPort != null) {
@@ -93,18 +98,18 @@ async function recoverOrphanedSessions() {
         console.log(`[recovery] Session ${session.id} recovered on port ${session.serverPort}`);
         recovered++;
       } else {
+        // Process confirmed dead — clean up
         await cleanupDeadSession(session.id, session.ticketId);
         cleaned++;
       }
     } else {
-      // Session has no PID/port but is marked active — stale row from before migration
-      await cleanupDeadSession(session.id, session.ticketId);
-      cleaned++;
+      // No PID/port saved — can't verify. Leave as-is so active tickets aren't nuked.
+      skipped++;
     }
   }
 
-  if (recovered > 0 || cleaned > 0) {
-    console.log(`[recovery] ${recovered} sessions recovered, ${cleaned} stale sessions cleaned`);
+  if (recovered > 0 || cleaned > 0 || skipped > 0) {
+    console.log(`[recovery] ${recovered} recovered, ${cleaned} cleaned (dead), ${skipped} skipped (no pid/port)`);
   }
 }
 
