@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import { join } from "path";
 import type { FastifyInstance } from "fastify";
-import { opencodeConfigUpdateSchema } from "../validators";
+import { opencodeConfigUpdateSchema, opencodeTuiUpdateSchema } from "../validators";
 
 function getConfigDir(): string {
   return process.env.XDG_CONFIG_HOME
@@ -11,6 +11,10 @@ function getConfigDir(): string {
 
 function getConfigPath(): string {
   return join(getConfigDir(), "opencode.json");
+}
+
+function getTuiConfigPath(): string {
+  return join(getConfigDir(), "tui.json");
 }
 
 function readConfig(): Record<string, unknown> {
@@ -23,8 +27,25 @@ function readConfig(): Record<string, unknown> {
   }
 }
 
+function readTuiConfig(): Record<string, unknown> {
+  const path = getTuiConfigPath();
+  if (!existsSync(path)) return {};
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
 function writeConfig(config: Record<string, unknown>): void {
   const path = getConfigPath();
+  const dir = path.substring(0, path.lastIndexOf("/"));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
+}
+
+function writeTuiConfig(config: Record<string, unknown>): void {
+  const path = getTuiConfigPath();
   const dir = path.substring(0, path.lastIndexOf("/"));
   mkdirSync(dir, { recursive: true });
   writeFileSync(path, JSON.stringify(config, null, 2) + "\n", "utf-8");
@@ -132,5 +153,29 @@ export function registerOpencodeConfigRoutes(app: FastifyInstance) {
   // List available agents
   app.get("/api/opencode/agents", async () => {
     return listAgents();
+  });
+
+  // Get opencode TUI config (tui.json)
+  app.get("/api/opencode/tui-config", async () => {
+    const config = readTuiConfig();
+    return {
+      theme: (config.theme as string) || "opencode",
+    };
+  });
+
+  // Update opencode TUI config
+  app.put("/api/opencode/tui-config", async (req, reply) => {
+    const input = opencodeTuiUpdateSchema.parse(req.body);
+    const config = readTuiConfig();
+
+    if (input.theme !== undefined) {
+      config.theme = input.theme;
+    }
+
+    writeTuiConfig(config);
+
+    return {
+      theme: (config.theme as string) || "opencode",
+    };
   });
 }
