@@ -1,8 +1,8 @@
 import { useMemo } from "react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTickets } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
 import { useCostSummary } from "../hooks/useCostSummary";
-import { useAppStore } from "../store/app";
 import ActivityTimeline from "./ActivityTimeline";
 import CostChart from "./CostChart";
 import { Ticket, Layers, Circle, Play, DollarSign, ArrowRight, GitBranch, Clock, CheckCheck } from "lucide-react";
@@ -32,15 +32,13 @@ function StatCard({
   );
 }
 
-interface DashboardProps {
-  repoId?: string;
-}
-
-export default function Dashboard({ repoId }: DashboardProps) {
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  const repoId = search.repoId as string | undefined;
   const { data: ticketsData } = useTickets({ repoId });
   const { data: repos } = useRepos();
   const { data: costs } = useCostSummary();
-  const { setSelectedRepoId, setSelectedTicketId, setView } = useAppStore();
 
   const repo = useMemo(
     () => repos?.find((r) => r.id === repoId) ?? null,
@@ -158,7 +156,7 @@ export default function Dashboard({ repoId }: DashboardProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => { setView("list"); }}
+                  onClick={() => navigate({ to: "/list", search: { repoId } })}
                   className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   View all tickets →
@@ -173,7 +171,7 @@ export default function Dashboard({ repoId }: DashboardProps) {
                   repos.map((r) => (
                     <button
                       key={r.id}
-                      onClick={() => { setSelectedRepoId(r.id); }}
+                      onClick={() => navigate({ to: "/", search: { repoId: r.id } })}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                     >
                       <Layers size={14} className="shrink-0 text-zinc-500" />
@@ -201,10 +199,7 @@ export default function Dashboard({ repoId }: DashboardProps) {
                 return (
                   <button
                     key={ticket.id}
-                    onClick={() => {
-                      setSelectedRepoId(ticket.repoId);
-                      setSelectedTicketId(ticket.id);
-                    }}
+                    onClick={() => navigate({ to: `/tickets/${ticket.id}` })}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
                     <span

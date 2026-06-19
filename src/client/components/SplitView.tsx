@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAppStore } from "../store/app";
+import { useParams } from "@tanstack/react-router";
+import { ticketRoute } from "../router";
 import TicketDetail from "./TicketDetail";
 import GitToolbar from "./GitToolbar";
 import { ArrowLeft, Play, Square, ExternalLink, Loader2 } from "lucide-react";
@@ -17,7 +18,7 @@ function encodeDirSlug(dir: string): string {
 }
 
 export default function SplitView() {
-  const { selectedTicketId, setSelectedTicketId } = useAppStore();
+  const { ticketId } = useParams({ from: ticketRoute.id });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [opencodePort, setOpencodePort] = useState<number | null>(null);
   const [cwd, setCwd] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export default function SplitView() {
   // On ticket switch: don't reset iframe URL state (keeps the iframe alive).
   // Reset only sessionId (for stop) + phase. Overlays hide the transition.
   useEffect(() => {
-    if (!selectedTicketId) return;
+    if (!ticketId) return;
 
     setSessionId(null);
     setPhase("starting");
@@ -50,12 +51,12 @@ export default function SplitView() {
 
     (async () => {
       try {
-        const ticket = await fetchTicket(selectedTicketId);
+        const ticket = await fetchTicket(ticketId);
         if (!active) return;
 
         if (ticket.activeSessionId) {
           setOverlayText("opening opencode");
-          const session = await createTicketSession(selectedTicketId);
+          const session = await createTicketSession(ticketId);
           if (!active) return;
           setSessionId(session.id);
           setOpencodePort(session.opencodePort);
@@ -78,7 +79,7 @@ export default function SplitView() {
     })();
 
     return () => { active = false; };
-  }, [selectedTicketId, queryClient]);
+  }, [ticketId, queryClient]);
 
   // Reset iframe loading state whenever the URL changes
   useEffect(() => {
@@ -97,13 +98,13 @@ export default function SplitView() {
   }, [sessionId]);
 
   const handleStartSession = useCallback(async () => {
-    if (!selectedTicketId || phase === "starting") return;
+    if (!ticketId || phase === "starting") return;
     setPhase("starting");
     setError(null);
 
     try {
       setOverlayText("opening opencode");
-      const session = await createTicketSession(selectedTicketId);
+      const session = await createTicketSession(ticketId);
 
       setSessionId(session.id);
       setOpencodePort(session.opencodePort);
@@ -130,7 +131,7 @@ export default function SplitView() {
       setError((err as Error).message || "Failed to start session");
       setPhase("idle");
     }
-  }, [selectedTicketId, phase, queryClient]);
+  }, [ticketId, phase, queryClient]);
 
   const handleStopSession = useCallback(async () => {
     if (!sessionId) return;
@@ -148,10 +149,8 @@ export default function SplitView() {
   }, [sessionId, queryClient]);
 
   const handleBack = useCallback(() => {
-    setSelectedTicketId(null);
-  }, [setSelectedTicketId]);
-
-  if (!selectedTicketId) return null;
+    window.history.back();
+  }, []);
 
   const sessionActive = phase === "active";
 
@@ -190,7 +189,7 @@ export default function SplitView() {
       <div className="w-[380px] min-w-[380px] border-r border-zinc-800 flex flex-col bg-zinc-950">
         <HeaderBar onBack={handleBack} />
         <div className="flex-1 overflow-hidden">
-          <TicketDetail ticketId={selectedTicketId} onStartSession={handleStartSession} sessionActive={sessionActive} />
+          <TicketDetail ticketId={ticketId} onStartSession={handleStartSession} sessionActive={sessionActive} />
         </div>
       </div>
 

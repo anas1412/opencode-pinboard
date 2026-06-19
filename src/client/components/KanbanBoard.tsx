@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTickets, useUpdateTicket } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
-import { useAppStore } from "../store/app";
 import type { Ticket, TicketStatus } from "../../shared/types";
 
 const COLUMNS: { status: TicketStatus; label: string }[] = [
@@ -99,9 +99,9 @@ interface KanbanBoardProps {
 }
 
 export default function KanbanBoard({ repoId, search, status, priority, category }: KanbanBoardProps) {
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useTickets({ repoId, search, status, priority, category });
   const { data: repos } = useRepos();
-  const { setSelectedTicketId } = useAppStore();
   const updateTicket = useUpdateTicket();
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
 
@@ -211,7 +211,7 @@ export default function KanbanBoard({ repoId, search, status, priority, category
                     key={ticket.id}
                     ticket={ticket}
                     repoName={repoMap.get(ticket.repoId) ?? ticket.repoId.slice(0, 8)}
-                    onSelect={setSelectedTicketId}
+                    onSelect={(id) => navigate({ to: `/tickets/${id}` })}
                   />
                 ))}
                 {tickets.length === 0 && (

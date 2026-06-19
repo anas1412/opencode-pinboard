@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useTicket, useUpdateTicket, useDeleteTicket, useTicketSessions, useGenerateNotes } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
-import { useAppStore } from "../store/app";
+import { useNavigate } from "@tanstack/react-router";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_CATEGORIES } from "../../shared/types";
 import { Clock, GitBranch, DollarSign, FileCode, Pencil, X, Trash2, Check } from "lucide-react";
@@ -29,7 +29,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
   const { data: sessions } = useTicketSessions(ticketId);
   const updateTicket = useUpdateTicket();
   const deleteTicket = useDeleteTicket();
-  const { setSelectedTicketId } = useAppStore();
+  const navigate = useNavigate();
 
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState("");
@@ -91,7 +91,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
   async function handleDelete() {
     if (!ticket) return;
     await deleteTicket.mutateAsync(ticket.id);
-    setSelectedTicketId(null);
+    navigate({ to: "/" });
   }
 
   async function handleGenerateNotes() {

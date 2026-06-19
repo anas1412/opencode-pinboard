@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useAppStore } from "../store/app";
 import { useRepos, useDeleteRepo } from "../hooks/useRepos";
 import { useTickets } from "../hooks/useTickets";
@@ -6,8 +7,15 @@ import { useCostSummary } from "../hooks/useCostSummary";
 import AddRepoModal from "./AddRepoModal";
 import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus } from "lucide-react";
 
+function useUrlRepoId(): string | undefined {
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  return search.repoId as string | undefined;
+}
+
 export default function Sidebar() {
-  const { selectedRepoId, setSelectedRepoId, setSelectedTicketId, setView, setCreateOpen } = useAppStore();
+  const navigate = useNavigate();
+  const currentRepoId = useUrlRepoId();
+  const { setCreateOpen } = useAppStore();
   const { data: repos } = useRepos();
   const { data: ticketsData } = useTickets();
   const { data: costs } = useCostSummary();
@@ -23,11 +31,7 @@ export default function Sidebar() {
       <div className="absolute top-0 left-0 w-px h-full pointer-events-none" style={{ background: `linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 50%, transparent) 40%, transparent 100%)` }} />
       <div className="p-4 flex justify-center">
         <button
-          onClick={() => {
-            setSelectedRepoId(null);
-            setSelectedTicketId(null);
-            setView("dashboard");
-          }}
+          onClick={() => navigate({ to: "/" })}
           className="flex items-center gap-2 text-lg font-bold tracking-tight text-white transition-colors duration-150 hover:[color:var(--accent-text)]"
         >
           <Pin size={18} className="-rotate-45" />
@@ -53,10 +57,7 @@ export default function Sidebar() {
         {activeTickets.map((ticket) => (
           <button
             key={ticket.id}
-            onClick={() => {
-              setSelectedTicketId(ticket.id);
-              setView("list");
-            }}
+            onClick={() => navigate({ to: `/tickets/${ticket.id}` })}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-md transition-colors text-left"
           >
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-green-400" />
@@ -85,13 +86,9 @@ export default function Sidebar() {
       </div>
       <div className="px-2 space-y-0.5 overflow-auto max-h-[40vh]">
         <button
-          onClick={() => {
-            setSelectedRepoId(null);
-            setSelectedTicketId(null);
-            setView("dashboard");
-          }}
+          onClick={() => navigate({ to: "/" })}
           className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-150 ${
-            selectedRepoId === null
+            currentRepoId === undefined
               ? "nav-active"
               : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
           }`}
@@ -103,13 +100,9 @@ export default function Sidebar() {
         {repos?.map((repo) => (
           <div key={repo.id} className="group flex items-center">
             <button
-              onClick={() => {
-                setSelectedRepoId(repo.id);
-                setSelectedTicketId(null);
-                setView("dashboard");
-              }}
+              onClick={() => navigate({ to: "/", search: { repoId: repo.id } })}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-all duration-150 flex-1 min-w-0 ${
-                selectedRepoId === repo.id
+                currentRepoId === repo.id
                   ? "nav-active"
                   : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
               }`}
@@ -158,7 +151,7 @@ export default function Sidebar() {
       </div>
 
       <button
-        onClick={() => setView("settings")}
+        onClick={() => navigate({ to: "/settings" })}
         className="flex items-center gap-2 px-4 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors border-t border-zinc-800"
       >
         <Settings2 size={13} />

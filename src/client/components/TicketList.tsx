@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTickets, useDeleteTicket, useBatchUpdateTickets, useBatchDeleteTickets } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
-import { useAppStore } from "../store/app";
 import type { Ticket, TicketStatus } from "../../shared/types";
 import { TICKET_STATUSES } from "../../shared/types";
 import { Trash2, X, Check } from "lucide-react";
@@ -48,9 +48,9 @@ interface TicketListProps {
 }
 
 export default function TicketList({ repoId, search, status, priority, category }: TicketListProps) {
+  const navigate = useNavigate();
   const { data, isLoading, isError, error } = useTickets({ repoId, search, status, priority, category });
   const { data: repos } = useRepos();
-  const { setSelectedTicketId } = useAppStore();
   const deleteTicket = useDeleteTicket();
   const batchUpdate = useBatchUpdateTickets();
   const batchDelete = useBatchDeleteTickets();
@@ -195,7 +195,7 @@ export default function TicketList({ repoId, search, status, priority, category 
               return (
                 <tr
                   key={ticket.id}
-                  onClick={() => setSelectedTicketId(ticket.id)}
+                  onClick={() => navigate({ to: `/tickets/${ticket.id}` })}
                   className={`border-b border-zinc-800/50 hover:bg-zinc-800/30 cursor-pointer transition-colors group ${
                     isSelected ? "row-accent" : ""
                   }`}

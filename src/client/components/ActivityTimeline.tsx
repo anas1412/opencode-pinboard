@@ -1,4 +1,4 @@
-import { useAppStore } from "../store/app";
+import { useNavigate } from "@tanstack/react-router";
 import { useRecentSessions } from "../hooks/useRecentSessions";
 import { Clock, Zap, GitBranch, CheckCircle, XCircle, Loader } from "lucide-react";
 
@@ -37,8 +37,8 @@ interface ActivityTimelineProps {
 }
 
 export default function ActivityTimeline({ repoId, limit = 20 }: ActivityTimelineProps) {
+  const navigate = useNavigate();
   const { data: sessions, isLoading } = useRecentSessions({ repoId, limit });
-  const { setSelectedTicketId, setView } = useAppStore();
 
   if (isLoading) {
     return <p className="text-sm text-zinc-600">Loading activity…</p>;
@@ -70,10 +70,7 @@ export default function ActivityTimeline({ repoId, limit = 20 }: ActivityTimelin
 
           {/* Ticket title */}
           <button
-            onClick={() => {
-              setSelectedTicketId(s.ticketId);
-              setView("list");
-            }}
+            onClick={() => navigate({ to: `/tickets/${s.ticketId}` })}
             className="text-sm text-zinc-300 hover:text-blue-400 transition-colors truncate flex-1 min-w-0 text-left"
           >
             {s.ticketTitle}
