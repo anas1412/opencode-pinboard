@@ -13,11 +13,10 @@ import { z } from "zod";
 import { useAppStore } from "./store/app";
 import { useRepos } from "./hooks/useRepos";
 import { createChat } from "./api/chats";
-import { Plus, List, Columns, LayoutDashboard, BookText, MessageSquare, GitBranch, Loader2 } from "lucide-react";
+import { Plus, List, LayoutDashboard, BookText, MessageSquare, GitBranch, Loader2 } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
-import TicketList from "./components/TicketList";
-import KanbanBoard from "./components/KanbanBoard";
+import TicketsView from "./components/TicketsView";
 import Settings from "./components/Settings";
 import UsagePage from "./components/UsagePage";
 import SplitView from "./components/SplitView";
@@ -29,6 +28,11 @@ import ChatView from "./components/ChatView";
 
 const contentSearchSchema = z.object({
   repoId: z.string().optional(),
+});
+
+const ticketsSearchSchema = z.object({
+  repoId: z.string().optional(),
+  view: z.enum(["list", "board"]).optional(),
 });
 
 // ─── Root Layout ─────────────────────────────────────────────────────
@@ -110,28 +114,16 @@ function ContentLayout() {
               Overview
             </Link>
             <Link
-              to="/list"
+              to="/tickets"
               search={{ repoId: search.repoId }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
-                isActive("/list")
+                isActive("/tickets")
                   ? "tab-active"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
               }`}
             >
               <List size={13} />
-              List
-            </Link>
-            <Link
-              to="/board"
-              search={{ repoId: search.repoId }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
-                isActive("/board")
-                  ? "tab-active"
-                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
-              }`}
-            >
-              <Columns size={13} />
-              Board
+              Tickets
             </Link>
             <Link
               to="/journal"
@@ -229,18 +221,11 @@ const indexRoute = createRoute({
   component: Dashboard,
 });
 
-const listRoute = createRoute({
+const ticketsRoute = createRoute({
   getParentRoute: () => contentLayout,
-  path: "/list",
-  validateSearch: contentSearchSchema,
-  component: TicketList,
-});
-
-const boardRoute = createRoute({
-  getParentRoute: () => contentLayout,
-  path: "/board",
-  validateSearch: contentSearchSchema,
-  component: KanbanBoard,
+  path: "/tickets",
+  validateSearch: ticketsSearchSchema,
+  component: TicketsView,
 });
 
 const journalRoute = createRoute({
@@ -278,7 +263,7 @@ const chatRoute = createRoute({
 // ─── Route Tree & Router ────────────────────────────────────────────
 
 const routeTree = rootRoute.addChildren([
-  contentLayout.addChildren([indexRoute, listRoute, boardRoute, journalRoute]),
+  contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute]),
   settingsRoute,
   usageRoute,
   ticketRoute,
@@ -287,7 +272,7 @@ const routeTree = rootRoute.addChildren([
 
 const router = createRouter({ routeTree });
 
-export { router, indexRoute, listRoute, boardRoute, journalRoute, ticketRoute, usageRoute, chatRoute };
+export { router, indexRoute, ticketsRoute, journalRoute, ticketRoute, usageRoute, chatRoute };
 
 // ─── Type augmentation for type-safe router usage ────────────────────
 

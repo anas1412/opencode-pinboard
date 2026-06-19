@@ -81,7 +81,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
         },
       });
       if (status === "closed" || status === "resolved") {
-        navigate({ to: "/list", search: { repoId: ticket.repoId } });
+        navigate({ to: "/tickets", search: { repoId: ticket.repoId } });
         return;
       }
       setEditing(false);

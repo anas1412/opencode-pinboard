@@ -156,7 +156,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <button
-                  onClick={() => navigate({ to: "/list", search: { repoId } })}
+                  onClick={() => navigate({ to: "/tickets", search: { repoId } })}
                   className="mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   View all tickets →
