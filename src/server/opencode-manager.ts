@@ -29,6 +29,7 @@ export async function startSessionServer(sessionId: string, repoPath: string): P
     const proc = spawn("opencode", ["serve", "--port", "0"], {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
+      cwd: repoPath,
     });
 
     let resolved = false;

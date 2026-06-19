@@ -55,6 +55,13 @@ export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
       prompt: "commit changes",
     },
     {
+      id: "merge",
+      label: "Merge",
+      icon: <GitMerge size={14} />,
+      enabled: true,
+      prompt: "merge this branch directly into main and delete the branch — no pull request",
+    },
+    {
       id: "push",
       label: "Push",
       icon: <Upload size={14} />,
@@ -74,13 +81,6 @@ export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
       icon: <GitPullRequest size={14} />,
       enabled: true,
       prompt: "create a pull request for this branch on GitHub",
-    },
-    {
-      id: "merge",
-      label: "Merge",
-      icon: <GitMerge size={14} />,
-      enabled: true,
-      prompt: "merge this branch directly into main and delete the branch — no pull request",
     },
   ];
 

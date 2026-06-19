@@ -431,7 +431,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
     // Create or reuse opencode session ID (preserves conversation history)
     if (!opencodeSessionId) {
       try {
-        opencodeSessionId = await createOpencodeSession(port, repo.localPath, ticket.title, opencodeModel);
+        opencodeSessionId = await createOpencodeSession(port, sessionCwd, ticket.title, opencodeModel);
       } catch (err) {
         app.log.warn({ err, sessionId }, "Could not create opencode session — messages won't persist");
       }
@@ -456,7 +456,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
     return {
       id: sessionId,
       ticketId: input.ticketId,
-      cwd: repo.localPath,
+      cwd: sessionCwd,
       branch: ticket.branch,
       opencodeSessionId,
       opencodePort: port,
