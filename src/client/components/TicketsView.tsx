@@ -3,12 +3,22 @@ import TicketList from "./TicketList";
 import KanbanBoard from "./KanbanBoard";
 import { LayoutList, Columns } from "lucide-react";
 
+const VIEW_STORAGE_KEY = "tickets-view";
+
+function loadView(urlView?: string): "list" | "board" {
+  if (urlView === "list" || urlView === "board") return urlView;
+  const saved = typeof window !== "undefined" ? localStorage.getItem(VIEW_STORAGE_KEY) : null;
+  if (saved === "list" || saved === "board") return saved;
+  return "list";
+}
+
 export default function TicketsView() {
   const search = useSearch({ strict: false }) as { repoId?: string; view?: string };
   const navigate = useNavigate();
-  const view = search.view === "board" ? "board" : "list";
+  const view = loadView(search.view);
 
   const setView = (newView: "list" | "board") => {
+    localStorage.setItem(VIEW_STORAGE_KEY, newView);
     navigate({
       to: "/tickets",
       search: { repoId: search.repoId, view: newView },
@@ -18,7 +28,7 @@ export default function TicketsView() {
   return (
     <div className="flex flex-col h-full">
       {/* View toggle */}
-      <div className="flex items-center gap-0.5 bg-zinc-900/80 rounded-lg p-0.5 border border-[var(--border-subtle)] self-start mb-4 shrink-0">
+      <div className="flex items-center gap-0.5 bg-zinc-900/80 rounded-lg p-0.5 border border-[var(--border-subtle)] self-end mb-4 shrink-0">
         <button
           onClick={() => setView("list")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
