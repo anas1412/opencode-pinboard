@@ -1,7 +1,7 @@
 # OpenTack
 
 <p align="center">
-  <img src="./public/opentack-logo.png" alt="OpenTack logo" width="400">
+  <img src="./opentack_logo.png" alt="OpenTack logo" width="400">
 </p>
 
 **Track your opencode work like a pro — without leaving your browser.**
@@ -23,12 +23,13 @@ OpenTack gives you a simple browser interface to answer all of that. Think of it
 OpenTack runs entirely on your machine. Nothing leaves your computer.
 
 1. **Add repos** — point OpenTack at any local Git repo, or clone from GitHub
-2. **Create tickets** — give each ticket a title, description, priority, category, and repo
-3. **Start a session** — OpenTack fires up opencode's web UI in a split panel, linked to that ticket
-4. **Code** — talk to opencode in the right panel while viewing ticket details on the left
-5. **Track** — see active sessions, weekly costs, activity history, and more
+2. **Create tickets** — give each ticket a title, description, priority, category, and repo. A feature branch is generated automatically (e.g. `feat/my-feature-uuid`).
+3. **Start a session** — OpenTack creates a dedicated git worktree for the ticket, launches opencode in the background, and opens a split-panel view in your browser. Each session is fully isolated — work on multiple tickets in parallel.
+4. **Code** — talk to opencode in the right panel while viewing ticket details on the left. Sessions resume where you left off, preserving the full conversation history.
+5. **Track** — see active sessions, weekly costs, daily cost history, per-repo and per-model breakdowns. Cost data comes directly from opencode.
+6. **Breeze through restarts** — active sessions survive server restarts. OpenTack picks up where it left off.
 
-Switch between **Overview** (dashboard with stats, cost charts, activity timeline), **List** (filterable table), and **Board** (drag-and-drop Kanban). Each ticket tracks its session history, token usage, and cost automatically.
+Switch between **Overview** (dashboard with stats, cost charts, activity timeline), **List** (filterable table), **Board** (drag-and-drop Kanban), and **Journal** (daily activity grouped by day). Each ticket tracks its session history, token usage, and cost automatically.
 
 ## Quick start
 
@@ -91,13 +92,14 @@ bun run build
 cd ..
 rm -rf opentack
 rm -rf ~/.opentack
+rm -rf ~/opentack-worktrees
 ```
 
 ### Add a repo
 
 Click the **+** button in the sidebar under Repos. You have two options:
 
-**Local folder** — pick any local Git repository. OpenTack detects the repo name and branch automatically.
+**Local folder** — pick any local Git repository. OpenTack detects the repo name and default branch automatically.
 
 **Clone from GitHub** — paste a git URL (SSH or HTTPS). OpenTack clones it to `~/.opentack/repos/` and adds it automatically.
 
@@ -115,11 +117,19 @@ Click the **+** button in the sidebar under Repos. You have two options:
 
 ### Create a ticket
 
-Click **New ticket**, give it a title, description, priority, category, and assign it to a repo.
+Click **New ticket**, give it a title, description, priority, category, and assign it to a repo. A branch is generated automatically, and the worktree is created on first session start.
 
 ### Start working
 
-Click **Start session**. OpenTack launches opencode's web UI in the right panel. Every message is saved to the ticket's session history. Stop the session when done; resume it later from where you left off.
+Click **Start session**. OpenTack creates a git worktree in `~/opentack-worktrees/`, launches opencode for that ticket, and optionally refines your ticket description into a more structured prompt before sending it. The opencode session appears in an iframe in the right panel. Stop the session when done; resume it later — the conversation history is preserved.
+
+### Batch operations
+
+Select multiple tickets to update their status, priority, or category in bulk, or delete them in one go.
+
+### Generate notes
+
+After a session, click **Generate notes** to have opencode summarize the session transcript into bullet-point notes, saved directly on the ticket.
 
 ## Views
 
@@ -128,13 +138,15 @@ Click **Start session**. OpenTack launches opencode's web UI in the right panel.
 | **Overview** | Dashboard with stat cards, daily usage chart (30 days), recent tickets, activity timeline, and per-repo cost breakdown |
 | **List** | Filterable ticket table with search, status, priority, and category filters |
 | **Board** | Drag-and-drop Kanban with columns: Open, In Progress, Needs Review, Changes Requested, Resolved |
-| **Settings** | Theme picker (amber/emerald/violet/sky), default opencode model, forward-description toggle, per-repo environment variables |
+| **Journal** | Paginated daily view grouping tickets by day, showing notes, changed files, branch, and repo name |
+| **Usage** | Cost history with per-repo, per-ticket, and per-model breakdowns and date range filtering |
+| **Settings** | Repo management (add/edit/remove), opencode config display, forward-description toggle, and theme picker (amber/emerald/violet/sky) |
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `bun run dev` | Start the server (default port 3000) |
+| `bun run dev` | Start the server (serves both API and client, default port 3000) |
 | `bun run build` | Build client + server for production |
 | `bun run build:client` | Build only the frontend (Vite) |
 | `bun run build:server` | Build only the server (Bun bundle) |
@@ -145,8 +157,8 @@ Click **Start session**. OpenTack launches opencode's web UI in the right panel.
 
 ## Tech stack
 
-- **Frontend**: React 19, Tailwind CSS 4, Vite, zustand, TanStack Query, TanStack Router, lucide-react
-- **Backend**: Fastify 5 (Bun runtime)
+- **Frontend**: React 19, Tailwind CSS 4, Vite 6, Zustand 5, TanStack Query 5, TanStack Router 1, Lucide React, react-markdown + remark-gfm
+- **Backend**: Fastify 5 (Bun runtime), Zod, chokidar
 - **Database**: SQLite via Drizzle ORM
 - **AI**: Powered by opencode
 
