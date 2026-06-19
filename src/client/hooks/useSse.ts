@@ -44,6 +44,8 @@ export function useSse() {
 
       // Refresh recent sessions (costs changed)
       queryClient.invalidateQueries({ queryKey: ["sessions", "recent"] });
+      // Refresh ticket detail (files changed may have updated)
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     });
 
     es.addEventListener("session.stopped", (e: MessageEvent) => {
@@ -66,11 +68,16 @@ export function useSse() {
       // Refresh ticket list (active session changed)
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["sessions", "recent"] });
+      // Refresh ticket detail (files changed may have updated)
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     });
 
-    es.addEventListener("session.started", () => {
+    es.addEventListener("session.started", (e: MessageEvent) => {
+      const { ticketId } = JSON.parse(e.data) as { ticketId: string };
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["sessions", "recent"] });
+      // Refresh ticket detail (files changed may have updated)
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     });
 
     es.addEventListener("ticket.created", () => {
