@@ -99,10 +99,15 @@ async function generateAndSendImprovedPrompt(
       // 2. Build improvement prompt
       const improvementPrompt = `Rewrite the following task description into a detailed, well-structured prompt for an AI coding assistant.
 
+Rules:
+- Do NOT use any tools, read any files, or scan the repository.
+- Only rewrite the text below. Do not add information from anywhere else.
+- Return ONLY the rewritten prompt. No explanations, no prefixes, no markdown formatting.
+
 Original description:
 ${description}
 
-Rewritten prompt:`;
+Prompt:`;
 
       // 3. Send to temp session
       const msgRes = await fetch(
