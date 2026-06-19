@@ -80,6 +80,10 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             .filter(Boolean),
         },
       });
+      if (status === "closed" || status === "resolved") {
+        navigate({ to: "/list", search: { repoId: ticket.repoId } });
+        return;
+      }
       setEditing(false);
     } catch {
       // error handled by react-query
