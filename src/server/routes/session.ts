@@ -302,10 +302,16 @@ export function registerSessionRoutes(app: FastifyInstance) {
     if (!repo)
       return reply.status(404).send({ error: "NOT_FOUND", message: "Repo not found" });
 
-    // Auto-create worktree on first session start if it doesn't exist yet
+    // Auto-create worktree on first session start if it doesn't exist yet.
+    // If worktreePath is set but the directory was deleted out-of-band
+    // (e.g. manual git worktree remove), clear it and create fresh.
     let sessionCwd: string;
-    if (ticket.worktreePath) {
+    if (ticket.worktreePath && existsSync(ticket.worktreePath)) {
       sessionCwd = ticket.worktreePath;
+    } else if (ticket.worktreePath) {
+      app.log.warn({ ticketId: ticket.id, worktreePath: ticket.worktreePath }, "Worktree path missing — will create new");
+      await db.update(schema.tickets).set({ worktreePath: null, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id));
+      sessionCwd = await createWorktreeForTicket(ticket, repo, app.log);
     } else {
       app.log.info({ ticketId: ticket.id }, "No worktree yet — creating one");
       sessionCwd = await createWorktreeForTicket(ticket, repo, app.log);
@@ -339,6 +345,8 @@ export function registerSessionRoutes(app: FastifyInstance) {
           exitReason: null,
           endedAt: null,
           durationMs: null,
+          cwd: sessionCwd,
+          branch: ticket.branch,
           createdAt: Date.now(), // bump for timeline sort
         })
         .where(eq(schema.sessions.id, sessionId));

@@ -8,13 +8,16 @@ import {
   Loader2,
   Trash2,
   CheckCircle2,
+  GitBranchPlus,
 } from "lucide-react";
 import { sendSessionMessage } from "../api/sessions";
-import { fetchWorktrees, removeWorktree } from "../api/worktrees";
+import { fetchWorktrees, removeWorktree, createWorktree } from "../api/worktrees";
 
 interface GitToolbarProps {
   sessionId: string | null;
   ticketId: string;
+  currentBranch: string | null;
+  onWorktreeCreated?: () => void;
 }
 
 type ActionId = "commit" | "push" | "pr" | "merge" | "sync";
@@ -27,23 +30,22 @@ interface Action {
   prompt?: string;
 }
 
-export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
+export default function GitToolbar({ sessionId, ticketId, currentBranch, onWorktreeCreated }: GitToolbarProps) {
   const [loading, setLoading] = useState<ActionId | null>(null);
   const [worktreeLoading, setWorktreeLoading] = useState(false);
   const [hasWorktree, setHasWorktree] = useState(false);
   const [worktreeError, setWorktreeError] = useState<string | null>(null);
 
-  // Check if a worktree exists for this ticket on mount
+  // Poll worktree existence while this component is mounted
   useEffect(() => {
-    let cancelled = false;
-    fetchWorktrees()
-      .then((list) => {
-        if (!cancelled) {
-          setHasWorktree(list.some((w) => w.id === ticketId));
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    let active = true;
+    const check = () =>
+      fetchWorktrees()
+        .then((list) => { if (active) setHasWorktree(list.some((w) => w.id === ticketId)); })
+        .catch(() => {});
+    check();
+    const interval = setInterval(check, 5000);
+    return () => { active = false; clearInterval(interval); };
   }, [ticketId]);
 
   const actions: Action[] = [
@@ -59,7 +61,7 @@ export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
       label: "Merge",
       icon: <GitMerge size={14} />,
       enabled: true,
-      prompt: "merge this branch directly into main and delete the branch — no pull request",
+      prompt: "commit all changes, merge this branch into main, and delete the branch — no pull request",
     },
     {
       id: "push",
@@ -109,10 +111,24 @@ export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
     }
   }
 
+  async function handleCreateWorktree() {
+    setWorktreeLoading(true);
+    setWorktreeError(null);
+    try {
+      await createWorktree(ticketId);
+      setHasWorktree(true);
+      onWorktreeCreated?.();
+    } catch (err) {
+      setWorktreeError(err instanceof Error ? err.message : "Failed to create worktree");
+    } finally {
+      setWorktreeLoading(false);
+    }
+  }
+
   return (
     <div className="border-t border-zinc-800 bg-zinc-950/95 px-2 py-1.5 flex items-center gap-1 overflow-x-auto">
-      {/* Worktree status + remove (worktree auto-created on session start) */}
-      {hasWorktree && (
+      {/* Worktree status, remove, or create */}
+      {hasWorktree ? (
         <>
           <span className="flex items-center gap-1 px-1.5 text-xs text-emerald-500 shrink-0">
             <CheckCircle2 size={12} />
@@ -130,6 +146,23 @@ export default function GitToolbar({ sessionId, ticketId }: GitToolbarProps) {
               <Trash2 size={14} />
             )}
             Remove
+          </button>
+          <span className="w-px h-4 bg-zinc-700 mx-1 shrink-0" />
+        </>
+      ) : (
+        <>
+          <button
+            onClick={handleCreateWorktree}
+            disabled={worktreeLoading}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 transition-colors shrink-0 disabled:opacity-40"
+            title="Create a git worktree for this ticket and switch opencode to it"
+          >
+            {worktreeLoading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <GitBranchPlus size={14} />
+            )}
+            Create worktree
           </button>
           <span className="w-px h-4 bg-zinc-700 mx-1 shrink-0" />
         </>

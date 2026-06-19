@@ -497,7 +497,7 @@ function deserializeTicket(row: typeof schema.tickets.$inferSelect) {
 }
 
 /**
- * Compute changed files by checking git in the repo.
+ * Compute changed files by checking git in the worktree (or main repo).
  * Checks three sources: branch diff, unstaged changes, staged changes.
  */
 async function computeChangedFiles(row: typeof schema.tickets.$inferSelect): Promise<string[]> {
@@ -506,13 +506,16 @@ async function computeChangedFiles(row: typeof schema.tickets.$inferSelect): Pro
   const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, row.repoId));
   if (!repo || !existsSync(repo.localPath)) return [];
 
+  // Use the worktree path if it exists — the branch is checked out there,
+  // and that's where opencode actually makes changes.
+  const gitDir = row.worktreePath && existsSync(row.worktreePath) ? row.worktreePath : repo.localPath;
   const baseBranch = row.baseBranch || repo.defaultBranch || "main";
   const files = new Set<string>();
 
   // 1. Committed changes unique to the branch
   try {
     const out = execSync(
-      `git -C "${repo.localPath}" diff --name-only "${baseBranch}...${row.branch}" 2>/dev/null || true`,
+      `git -C "${gitDir}" diff --name-only "${baseBranch}...${row.branch}" 2>/dev/null || true`,
       { timeout: 5000, encoding: "utf-8" },
     ).trim();
     if (out) out.split("\n").filter(Boolean).forEach((f) => files.add(f));
@@ -523,7 +526,7 @@ async function computeChangedFiles(row: typeof schema.tickets.$inferSelect): Pro
   // 2. Unstaged changes (files opencode is actively editing)
   try {
     const out = execSync(
-      `git -C "${repo.localPath}" diff --name-only 2>/dev/null || true`,
+      `git -C "${gitDir}" diff --name-only 2>/dev/null || true`,
       { timeout: 5000, encoding: "utf-8" },
     ).trim();
     if (out) out.split("\n").filter(Boolean).forEach((f) => files.add(f));
@@ -534,7 +537,7 @@ async function computeChangedFiles(row: typeof schema.tickets.$inferSelect): Pro
   // 3. Staged but not committed changes
   try {
     const out = execSync(
-      `git -C "${repo.localPath}" diff --cached --name-only 2>/dev/null || true`,
+      `git -C "${gitDir}" diff --cached --name-only 2>/dev/null || true`,
       { timeout: 5000, encoding: "utf-8" },
     ).trim();
     if (out) out.split("\n").filter(Boolean).forEach((f) => files.add(f));

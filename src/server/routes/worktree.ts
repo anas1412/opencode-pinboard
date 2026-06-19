@@ -202,7 +202,12 @@ export async function removeWorktreeForTicket(ticketId: string): Promise<void> {
       }
     }
 
-    // 3. Delete the branch
+    // 3. Prune orphaned worktree registrations (rm -rf leaves git metadata behind)
+    try {
+      execSync(`git -C "${repo.localPath}" worktree prune`, { timeout: 10000, stdio: "pipe" });
+    } catch {}
+
+    // 4. Delete the branch
     try {
       execSync(
         `git -C "${repo.localPath}" branch -D "${ticket.branch}" 2>/dev/null || true`,
