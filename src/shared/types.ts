@@ -155,6 +155,27 @@ export interface Settings {
   theme: Theme;
 }
 
+// ─── Journal ───────────────────────────────────────────
+
+export interface TicketDayInfo {
+  id: string;
+  title: string;
+  notes: string;
+  filesChanged: string[];
+  branch: string;
+  repoName: string;
+}
+
+export interface JournalDayResult {
+  date: string;
+  tickets: TicketDayInfo[];
+}
+
+export interface JournalResponse {
+  days: JournalDayResult[];
+  hasMore: boolean;
+}
+
 // ─── Opencode config (opencode.json) ─────────────────────────────────────
 
 export interface OpencodeConfig {

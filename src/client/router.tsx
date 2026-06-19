@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 import { useAppStore } from "./store/app";
 import { useRepos } from "./hooks/useRepos";
-import { Plus, List, Columns, LayoutDashboard } from "lucide-react";
+import { Plus, List, Columns, LayoutDashboard, BookText } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import TicketList from "./components/TicketList";
@@ -19,6 +19,7 @@ import KanbanBoard from "./components/KanbanBoard";
 import Settings from "./components/Settings";
 import SplitView from "./components/SplitView";
 import TicketCreate from "./components/TicketCreate";
+import JournalView from "./components/JournalView";
 
 // ─── Search param schema ─────────────────────────────────────────────
 
@@ -112,6 +113,18 @@ function ContentLayout() {
               <Columns size={13} />
               Board
             </Link>
+            <Link
+              to="/journal"
+              search={{ repoId: search.repoId }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
+                isActive("/journal")
+                  ? "tab-active"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+              }`}
+            >
+              <BookText size={13} />
+              Journal
+            </Link>
           </div>
         </div>
 
@@ -164,6 +177,13 @@ const boardRoute = createRoute({
   component: KanbanBoard,
 });
 
+const journalRoute = createRoute({
+  getParentRoute: () => contentLayout,
+  path: "/journal",
+  validateSearch: contentSearchSchema,
+  component: JournalView,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
@@ -179,14 +199,14 @@ const ticketRoute = createRoute({
 // ─── Route Tree & Router ────────────────────────────────────────────
 
 const routeTree = rootRoute.addChildren([
-  contentLayout.addChildren([indexRoute, listRoute, boardRoute]),
+  contentLayout.addChildren([indexRoute, listRoute, boardRoute, journalRoute]),
   settingsRoute,
   ticketRoute,
 ]);
 
 const router = createRouter({ routeTree });
 
-export { router, indexRoute, listRoute, boardRoute, ticketRoute };
+export { router, indexRoute, listRoute, boardRoute, journalRoute, ticketRoute };
 
 // ─── Type augmentation for type-safe router usage ────────────────────
 
