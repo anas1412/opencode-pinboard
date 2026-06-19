@@ -34,6 +34,13 @@ export function useTicketSessions(ticketId: string | null) {
     queryKey: ["ticket", ticketId, "sessions"],
     queryFn: () => fetchTicketSessions(ticketId!),
     enabled: !!ticketId,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data && data.length > 0 && data[0].exitCode === null) {
+        return 5000;
+      }
+      return false;
+    },
   });
 }
 
