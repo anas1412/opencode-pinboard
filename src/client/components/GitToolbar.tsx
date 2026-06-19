@@ -61,7 +61,7 @@ export default function GitToolbar({ sessionId, ticketId, currentBranch, onWorkt
       label: "Merge",
       icon: <GitMerge size={14} />,
       enabled: true,
-      prompt: "commit all changes, merge this branch into main, and delete the branch — no pull request",
+      prompt: "commit all changes and merge this branch into main — no pull request, no removing the git worktree",
     },
     {
       id: "push",
