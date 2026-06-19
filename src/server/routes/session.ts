@@ -4,7 +4,7 @@ import { z } from "zod";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { db, schema } from "../../db";
-import { startSessionServer, stopSessionServer, getSessionPort } from "../opencode-manager";
+import { startSessionServer, stopSessionServer, getSessionPort, getSessionPid } from "../opencode-manager";
 import { emitSse } from "../sse";
 import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession, fetchOpencodeSessionCost } from "./cost-utils";
 
@@ -377,6 +377,14 @@ export function registerSessionRoutes(app: FastifyInstance) {
     let port: number;
     try {
       port = await startSessionServer(sessionId, repo.localPath);
+      // Persist PID + port for orphan recovery
+      const pid = getSessionPid(sessionId);
+      if (pid) {
+        await db
+          .update(schema.sessions)
+          .set({ pid, serverPort: port })
+          .where(eq(schema.sessions.id, sessionId));
+      }
     } catch (err) {
       app.log.error({ err, sessionId }, "Failed to start opencode server");
       await db
@@ -515,6 +523,14 @@ export function registerSessionRoutes(app: FastifyInstance) {
     let port = getSessionPort(id);
     if (!port) {
       port = await startSessionServer(id, session.cwd);
+      // Persist PID + port for orphan recovery
+      const pid = getSessionPid(id);
+      if (pid) {
+        await db
+          .update(schema.sessions)
+          .set({ pid, serverPort: port })
+          .where(eq(schema.sessions.id, id));
+      }
     }
 
     await sendToSession(port, session.cwd, session.opencodeSessionId, text);
@@ -558,7 +574,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
 
     await db
       .update(schema.sessions)
-      .set({ exitCode: 0, exitReason: "user_stopped", endedAt: Date.now() })
+      .set({ exitCode: 0, exitReason: "user_stopped", endedAt: Date.now(), pid: null, serverPort: null })
       .where(eq(schema.sessions.id, id));
 
     // Clear ticket's activeSessionId so sidebar updates and auto-resume is clean

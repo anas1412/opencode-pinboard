@@ -80,6 +80,9 @@ export const sessions = sqliteTable("session", {
   endedAt: integer("ended_at", { mode: "number" }),
   durationMs: integer("duration_ms"),
 
+  pid: integer("pid"), // opencode serve process PID (for orphan recovery)
+  serverPort: integer("server_port"), // port the opencode serve is listening on
+
   approved: integer("approved", { mode: "boolean" }), // null = pending
   revisionNote: text("revision_note"),
 });

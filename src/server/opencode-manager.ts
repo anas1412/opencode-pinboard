@@ -1,10 +1,12 @@
 import { spawn, type ChildProcess } from "child_process";
+import { readFileSync, existsSync } from "fs";
 
 interface ServerInstance {
   proc: ChildProcess;
   port: number;
   sessionId: string;
   repoPath: string;
+  pid: number;
 }
 
 // One opencode serve process per session — isolates web UI origins for parallel use
@@ -45,7 +47,7 @@ export async function startSessionServer(sessionId: string, repoPath: string): P
         resolved = true;
         clearTimeout(timeout);
         const port = parseInt(match[1], 10);
-        servers.set(sessionId, { proc, port, sessionId, repoPath });
+        servers.set(sessionId, { proc, port, sessionId, repoPath, pid: proc.pid! });
         resolve(port);
       }
     };
@@ -92,4 +94,60 @@ export function stopAll(): void {
 /** Get the port for a running session's server, or undefined */
 export function getSessionPort(sessionId: string): number | undefined {
   return servers.get(sessionId)?.port;
+}
+
+/** Get the PID for a running session's server, or undefined */
+export function getSessionPid(sessionId: string): number | undefined {
+  return servers.get(sessionId)?.pid;
+}
+
+/**
+ * Register a recovered orphan session in the in-memory map.
+ * Creates a lightweight stub so getSessionPort() and other functions
+ * can find the session. The process is not managed by us — we just
+ * track the port for reconnection.
+ */
+export function registerRecoveredSession(sessionId: string, port: number, repoPath: string): void {
+  servers.set(sessionId, {
+    proc: { pid: -1, exitCode: null, kill: () => {} } as unknown as ChildProcess,
+    port,
+    sessionId,
+    repoPath,
+    pid: -1,
+  });
+}
+
+/**
+ * Check if a session process is genuinely alive and healthy.
+ * Verifies all three: process exists, cmdline matches, port is listening.
+ */
+export function isSessionAlive(pid: number, port: number, repoPath: string): boolean {
+  try {
+    // 1. Process exists
+    if (!existsSync(`/proc/${pid}`)) return false;
+
+    // 2. Command line matches "opencode serve"
+    try {
+      const cmdline = readFileSync(`/proc/${pid}/cmdline`, "utf-8");
+      if (!cmdline.includes("opencode") || !cmdline.includes("serve")) return false;
+    } catch {
+      return false;
+    }
+
+    // 3. Port matches — check the process's socket info
+    try {
+      const fdDir = `/proc/${pid}/fd`;
+      if (!existsSync(fdDir)) return false;
+      const fds = readFileSync(`/proc/${pid}/net/tcp`, "utf-8");
+      const hexPort = port.toString(16).padStart(4, "0");
+      // /proc/net/tcp lists listening sockets as "00000000:XXXX" for INADDR_ANY
+      if (!fds.includes(`:${hexPort}`)) return false;
+    } catch {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
 }

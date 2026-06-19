@@ -1,5 +1,9 @@
 # OpenTack
 
+<p align="center">
+  <img src="./opentack_logo.png" alt="OpenTack logo" width="400">
+</p>
+
 **Track your opencode work like a pro — without leaving your browser.**
 
 OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
