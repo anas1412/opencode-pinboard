@@ -240,43 +240,6 @@ export default function Dashboard() {
           <ActivityTimeline repoId={repoId} limit={15} />
         </div>
       </div>
-
-      {/* Cost breakdown — only for All Repos view */}
-      {!repoId && costs?.perRepo && costs.perRepo.length > 1 && (
-        <div>
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">Costs by repo</h3>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-800 text-left text-xs text-zinc-500 uppercase tracking-wider">
-                  <th className="px-4 py-2.5 font-medium">Repo</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Sessions</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Tokens</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {costs.perRepo.map((r) => (
-                  <tr key={r.repoId} className="border-b border-zinc-800/50 last:border-0">
-                    <td className="px-4 py-2.5 text-zinc-300">{r.repoName}</td>
-                    <td className="px-4 py-2.5 text-zinc-400 text-right font-mono text-xs">{r.sessionCount}</td>
-                    <td className="px-4 py-2.5 text-zinc-400 text-right font-mono text-xs">{r.tokens.toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-zinc-200 text-right font-mono">${r.usd.toFixed(2)}</td>
-                  </tr>
-                ))}
-                {costs.overheadUsd > 0 && (
-                  <tr className="border-t border-zinc-800/50">
-                    <td className="px-4 py-2.5 text-zinc-500 italic text-xs">App overhead</td>
-                    <td className="px-4 py-2.5 text-zinc-600 text-right font-mono text-xs">—</td>
-                    <td className="px-4 py-2.5 text-zinc-500 text-right font-mono text-xs">{costs.overheadTokens.toLocaleString()}</td>
-                    <td className="px-4 py-2.5 text-zinc-400 text-right font-mono">${costs.overheadUsd.toFixed(2)}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
