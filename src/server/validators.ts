@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OPENCODE_THEMES } from "../shared/types";
 
 export const repoCreateSchema = z.object({
   name: z.string().min(1).max(128),
@@ -44,6 +45,10 @@ export const settingsUpdateSchema = z.object({
 export const opencodeConfigUpdateSchema = z.object({
   model: z.string().min(1).optional(),
   default_agent: z.string().min(1).optional(),
+});
+
+export const opencodeTuiUpdateSchema = z.object({
+  theme: z.enum(OPENCODE_THEMES).optional(),
 });
 
 export const ticketListQuerySchema = z.object({

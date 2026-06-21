@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { readFileSync, existsSync } from "fs";
 import { execSync } from "child_process";
@@ -99,10 +99,15 @@ async function generateAndSendImprovedPrompt(
       // 2. Build improvement prompt
       const improvementPrompt = `Rewrite the following task description into a detailed, well-structured prompt for an AI coding assistant.
 
+Rules:
+- Do NOT use any tools, read any files, or scan the repository.
+- Only rewrite the text below. Do not add information from anywhere else.
+- Return ONLY the rewritten prompt. No explanations, no prefixes, no markdown formatting.
+
 Original description:
 ${description}
 
-Rewritten prompt:`;
+Prompt:`;
 
       // 3. Send to temp session
       const msgRes = await fetch(
@@ -181,8 +186,8 @@ export function registerSessionRoutes(app: FastifyInstance) {
       repoId: z.string().uuid().optional(),
     }).parse(req.query);
 
-    // Build the query — join sessions with tickets (+ repos) for metadata
-    const conditions = [];
+    // Build the query — only ticket sessions (exclude chats), join with tickets (+ repos) for metadata
+    const conditions = [isNotNull(schema.sessions.ticketId)];
     if (query.repoId) conditions.push(eq(schema.tickets.repoId, query.repoId));
 
     const rows = await db
@@ -302,10 +307,16 @@ export function registerSessionRoutes(app: FastifyInstance) {
     if (!repo)
       return reply.status(404).send({ error: "NOT_FOUND", message: "Repo not found" });
 
-    // Auto-create worktree on first session start if it doesn't exist yet
+    // Auto-create worktree on first session start if it doesn't exist yet.
+    // If worktreePath is set but the directory was deleted out-of-band
+    // (e.g. manual git worktree remove), clear it and create fresh.
     let sessionCwd: string;
-    if (ticket.worktreePath) {
+    if (ticket.worktreePath && existsSync(ticket.worktreePath)) {
       sessionCwd = ticket.worktreePath;
+    } else if (ticket.worktreePath) {
+      app.log.warn({ ticketId: ticket.id, worktreePath: ticket.worktreePath }, "Worktree path missing — will create new");
+      await db.update(schema.tickets).set({ worktreePath: null, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id));
+      sessionCwd = await createWorktreeForTicket(ticket, repo, app.log);
     } else {
       app.log.info({ ticketId: ticket.id }, "No worktree yet — creating one");
       sessionCwd = await createWorktreeForTicket(ticket, repo, app.log);
@@ -339,6 +350,8 @@ export function registerSessionRoutes(app: FastifyInstance) {
           exitReason: null,
           endedAt: null,
           durationMs: null,
+          cwd: sessionCwd,
+          branch: ticket.branch,
           createdAt: Date.now(), // bump for timeline sort
         })
         .where(eq(schema.sessions.id, sessionId));
@@ -475,6 +488,8 @@ export function registerSessionRoutes(app: FastifyInstance) {
     if (!session)
       return reply.status(404).send({ error: "NOT_FOUND", message: "Session not found" });
 
+    if (!session.ticketId)
+      return reply.status(400).send({ error: "NO_TICKET", message: "Session has no associated ticket" });
     const [ticket] = await db
       .select()
       .from(schema.tickets)
@@ -595,10 +610,12 @@ export function registerSessionRoutes(app: FastifyInstance) {
       .where(eq(schema.sessions.id, id));
 
     // Clear ticket's activeSessionId so sidebar updates and auto-resume is clean
-    await db
-      .update(schema.tickets)
-      .set({ activeSessionId: null, updatedAt: Date.now() })
-      .where(eq(schema.tickets.id, session.ticketId));
+    if (session.ticketId) {
+      await db
+        .update(schema.tickets)
+        .set({ activeSessionId: null, updatedAt: Date.now() })
+        .where(eq(schema.tickets.id, session.ticketId));
+    }
 
     // Kill the per-session opencode serve process (free port)
     stopSessionServer(id);

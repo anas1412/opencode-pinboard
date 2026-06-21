@@ -86,15 +86,18 @@ export default function SplitView() {
     setIframeLoaded(false);
   }, [opencodeUrl]);
 
-  // Fetch current git branch live from the repo when session is active
+  // Poll current git branch live from the repo while session is active
   useEffect(() => {
     if (!sessionId) { setCurrentBranch(null); return; }
     let active = true;
-    fetch(`/api/sessions/${sessionId}/branch`)
-      .then((r) => r.json())
-      .then((data) => { if (active) setCurrentBranch(data.branch ?? null); })
-      .catch(() => { if (active) setCurrentBranch(null); });
-    return () => { active = false; };
+    const fetchBranch = () =>
+      fetch(`/api/sessions/${sessionId}/branch`)
+        .then((r) => r.json())
+        .then((data) => { if (active) setCurrentBranch(data.branch ?? null); })
+        .catch(() => {});
+    fetchBranch();
+    const interval = setInterval(fetchBranch, 5000);
+    return () => { active = false; clearInterval(interval); };
   }, [sessionId]);
 
   const handleStartSession = useCallback(async () => {
@@ -154,6 +157,23 @@ export default function SplitView() {
     queryClient.invalidateQueries({ queryKey: ["tickets"] });
   }, [sessionId, queryClient]);
 
+  // After creating a worktree, stop the old session on main then restart on the worktree
+  const handleWorktreeCreated = useCallback(async () => {
+    if (sessionId) {
+      try {
+        await fetch(`/api/sessions/${sessionId}/stop`, { method: "POST" });
+      } catch {}
+    }
+    // Clear stale state so handleStartSession sees "idle"
+    setOpencodePort(null);
+    setCwd(null);
+    setCurrentBranch(null);
+    setOpencodeSessionId(null);
+    setPhase("idle");
+    // Small delay to let the server cleanup finish, then start fresh
+    setTimeout(() => handleStartSession(), 100);
+  }, [sessionId, handleStartSession]);
+
   const handleBack = useCallback(() => {
     window.history.back();
   }, []);
@@ -208,7 +228,7 @@ export default function SplitView() {
               opencode · port {opencodePort}{currentBranch ? ` · ${currentBranch}` : ""}
             </span>
             <div className="flex-1" />
-            <GitToolbar sessionId={sessionId} ticketId={ticketId} />
+            <GitToolbar sessionId={sessionId} ticketId={ticketId} currentBranch={currentBranch} onWorktreeCreated={handleWorktreeCreated} />
             <div className="flex items-center gap-2 shrink-0">
               <a
                 href={opencodeUrl}

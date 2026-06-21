@@ -62,7 +62,7 @@ export interface FileDiff {
 
 export interface Session {
   id: string;
-  ticketId: string;
+  ticketId: string | null;
   opencodeVersion: string;
   model: string;
   cwd: string;
@@ -174,6 +174,28 @@ export interface JournalDayResult {
 export interface JournalResponse {
   days: JournalDayResult[];
   hasMore: boolean;
+}
+
+// ─── Opencode TUI config (tui.json) ─────────────────────────────────────────
+
+export const OPENCODE_THEMES = [
+  "system",
+  "tokyonight",
+  "everforest",
+  "ayu",
+  "catppuccin",
+  "catppuccin-macchiato",
+  "gruvbox",
+  "kanagawa",
+  "nord",
+  "matrix",
+  "one-dark",
+  "opencode",
+] as const;
+export type OpencodeTheme = (typeof OPENCODE_THEMES)[number];
+
+export interface OpencodeTuiConfig {
+  theme?: OpencodeTheme;
 }
 
 // ─── Opencode config (opencode.json) ─────────────────────────────────────

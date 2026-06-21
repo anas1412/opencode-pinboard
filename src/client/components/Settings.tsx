@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRepos, useUpdateRepo } from "../hooks/useRepos";
 import { fetchSettings, updateSettings } from "../api/settings";
-import { fetchOpencodeConfig, updateOpencodeConfig, fetchAgents } from "../api/opencode-config";
-import { THEMES, type Theme } from "../../shared/types";
+import { fetchOpencodeConfig, updateOpencodeConfig, fetchAgents, fetchOpencodeTuiConfig, updateOpencodeTuiConfig } from "../api/opencode-config";
+import { THEMES, OPENCODE_THEMES, type Theme, type OpencodeTheme } from "../../shared/types";
 import { useAppStore } from "../store/app";
-import { Settings2, Plus, X, Save, Send, Palette, Cpu, Bot } from "lucide-react";
+import { Settings2, Plus, X, Save, Send, Palette, Cpu, Bot, Paintbrush } from "lucide-react";
 
 // ─── Env var editor (unchanged from original) ──────────────────────────
 
@@ -177,6 +177,11 @@ export default function Settings() {
     queryFn: fetchAgents,
   });
 
+  const { data: tuiCfg } = useQuery({
+    queryKey: ["opencode-tui-config"],
+    queryFn: fetchOpencodeTuiConfig,
+  });
+
   // ── Local state ────────────────────────────────────────────────────
   const [forward, setForward] = useState(true);
   const [theme, setLocalTheme] = useState<Theme>("amber");
@@ -184,6 +189,8 @@ export default function Settings() {
   const [modelDirty, setModelDirty] = useState(false);
   const [defaultAgent, setDefaultAgent] = useState("");
   const [agentDirty, setAgentDirty] = useState(false);
+  const [ocTheme, setOcTheme] = useState("opencode");
+  const [ocThemeDirty, setOcThemeDirty] = useState(false);
 
   // Sync server state → local on load
   useEffect(() => {
@@ -199,6 +206,12 @@ export default function Settings() {
       setDefaultAgent(opencodeCfg.default_agent || "build");
     }
   }, [opencodeCfg]);
+
+  useEffect(() => {
+    if (tuiCfg?.theme) {
+      setOcTheme(tuiCfg.theme);
+    }
+  }, [tuiCfg]);
 
   // ── Mutations ──────────────────────────────────────────────────────
   const saveSettings = useMutation({
@@ -222,6 +235,14 @@ export default function Settings() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["opencode-config"] });
       setAgentDirty(false);
+    },
+  });
+
+  const saveOcTheme = useMutation({
+    mutationFn: (input: { theme: OpencodeTheme }) => updateOpencodeTuiConfig(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["opencode-tui-config"] });
+      setOcThemeDirty(false);
     },
   });
 
@@ -249,6 +270,15 @@ export default function Settings() {
 
   const handleAgentSave = () => {
     saveAgent.mutate({ default_agent: defaultAgent });
+  };
+
+  const handleOcThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOcTheme(e.target.value);
+    setOcThemeDirty(true);
+  };
+
+  const handleOcThemeSave = () => {
+    saveOcTheme.mutate({ theme: ocTheme as OpencodeTheme });
   };
 
   const isLoading = settingsLoading || cfgLoading;
@@ -305,7 +335,36 @@ export default function Settings() {
             <ThemePicker value={theme} onChange={handleThemeChange} />
           </SectionCard>
 
-          {/* ── Section 3: Model ────────────────────────────────────── */}
+          {/* ── Section 3: OpenCode Theme ────────────────────────────── */}
+          <SectionCard
+            icon={<Paintbrush size={14} />}
+            title="OpenCode Theme"
+            description="Theme for the opencode web UI (iframe). Saved to ~/.config/opencode/tui.json"
+          >
+            <div className="flex items-center gap-2">
+              <select
+                value={ocTheme}
+                onChange={handleOcThemeChange}
+                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
+              >
+                {OPENCODE_THEMES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleOcThemeSave}
+                disabled={saveOcTheme.isPending || !ocThemeDirty}
+                className="btn-primary !text-xs"
+              >
+                <Save size={12} />
+                {saveOcTheme.isPending ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </SectionCard>
+
+          {/* ── Section 4: Model ────────────────────────────────────── */}
           <SectionCard
             icon={<Cpu size={14} />}
             title="Default Model"

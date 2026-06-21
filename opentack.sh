@@ -85,6 +85,17 @@ cmd_install() {
   bun run db:migrate
   ok "Database ready"
 
+  info "Setting default opencode theme..."
+  TUI_DIR="$HOME/.config/opencode"
+  mkdir -p "$TUI_DIR"
+  cat > "$TUI_DIR/tui.json" <<- EOF
+{
+  "\$schema": "https://opencode.ai/tui.json",
+  "theme": "opencode"
+}
+EOF
+  ok "Default opencode theme set to 'opencode'"
+
   info "Building frontend..."
   bun run build
   ok "Build complete"
@@ -129,6 +140,21 @@ cmd_update() {
   info "Running database migrations..."
   bun run db:migrate
   ok "Database up to date"
+
+  info "Ensuring default opencode theme..."
+  TUI_DIR="$HOME/.config/opencode"
+  mkdir -p "$TUI_DIR"
+  if [ ! -f "$TUI_DIR/tui.json" ]; then
+    cat > "$TUI_DIR/tui.json" <<- EOF
+{
+  "\$schema": "https://opencode.ai/tui.json",
+  "theme": "opencode"
+}
+EOF
+    ok "Default opencode theme set to 'opencode'"
+  else
+    ok "OpenCode theme config already exists (skipped)"
+  fi
 
   info "Rebuilding frontend..."
   bun run build
