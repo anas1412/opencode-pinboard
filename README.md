@@ -62,13 +62,11 @@ opentack-install-windows.exe
 
 ### Run the desktop app
 
-After installing or building, launch the native desktop app:
-
-| Platform | Location |
+| Platform | How to launch |
 |---|---|
-| **Linux** | `build/dev-linux-x64/OpenTack-dev/bin/launcher` |
-| **macOS** | `build/dev-darwin-{arch}/OpenTack-dev.app` |
-| **Windows** | `build/dev-win32-x64/OpenTack-dev/OpenTack-dev.exe` |
+| **Linux** | Find **OpenTack** in your app menu (installed to `~/.local/share/applications/opentack.desktop`) |
+| **macOS** | Open `OpenTack-dev.app` from `build/dev-darwin-{arch}/` |
+| **Windows** | Run `OpenTack-dev.exe` from `build/dev-win32-x64/OpenTack-dev/` |
 
 Or from the project directory:
 ```bash

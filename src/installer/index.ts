@@ -280,6 +280,28 @@ async function installOpenTack(): Promise<void> {
   info("Building desktop app...")
   await $`bun run build`.cwd(dir)
   ok("Desktop app built")
+
+  // Register app in system menu (Linux)
+  if (process.platform === "linux") {
+    const arch = process.arch === "x64" ? "x64" : process.arch
+    const launcherPath = path.join(dir, "build", `dev-linux-${arch}`, "OpenTack-dev", "bin", "launcher")
+    const iconPath = path.join(dir, "assets", "icon.png")
+    const appsDir = path.join(HOME, ".local", "share", "applications")
+    mkdirSync(appsDir, { recursive: true })
+    const desktopEntry = `[Desktop Entry]
+Type=Application
+Name=OpenTack
+Comment=Local ticket-based workspace for opencode
+Exec=${launcherPath}
+Icon=${iconPath}
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=OpenTack
+`
+    const desktopFile = path.join(appsDir, "opentack.desktop")
+    await Bun.write(desktopFile, desktopEntry)
+    ok("App shortcut added to system menu (OpenTack)")
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────────
@@ -306,6 +328,7 @@ function printHelp() {
   console.log("  5. Clones the OpenTack repo")
   console.log("  6. Runs bun install, DB migrations, and frontend build")
   console.log("  7. Builds the native desktop app (via electrobun)")
+  console.log("  8. Registers app shortcut in system menu (Linux)")
   console.log()
 }
 
@@ -346,8 +369,12 @@ async function main() {
         : `${buildDir}/${appName}/bin/launcher`
 
   banner("OpenTack is installed!")
-  console.log(`  ${BOLD}Run it:${NC}`)
-  console.log(`    ${path.join(INSTALL_DIR, binaryPath)}`)
+  if (process.platform === "linux") {
+    console.log(`  ${BOLD}Run it:${NC}  Find "OpenTack" in your app menu`)
+  } else {
+    console.log(`  ${BOLD}Run it:${NC}`)
+    console.log(`    ${path.join(INSTALL_DIR, binaryPath)}`)
+  }
   console.log()
   console.log(`  ${BOLD}Data directory:${NC} ${DATA_DIR}`)
   console.log()
