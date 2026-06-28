@@ -1,5 +1,7 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, type ChildProcess, execSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
+import { homedir } from "os";
+import path from "path";
 
 interface ServerInstance {
   proc: ChildProcess;
@@ -11,6 +13,38 @@ interface ServerInstance {
 
 // One opencode serve process per session — isolates web UI origins for parallel use
 const servers = new Map<string, ServerInstance>();
+
+/**
+ * Resolve the opencode binary path.
+ * Checks PATH first (via `which`/`where`), then falls back to common install locations.
+ */
+function resolveOpencodeBinary(): string {
+  // Check PATH first
+  try {
+    const which = process.platform === "win32" ? "where" : "which";
+    const out = execSync(`${which} opencode`, { encoding: "utf-8", timeout: 5000 }).trim();
+    if (out) return out.split("\n")[0].trim();
+  } catch {
+    // not in PATH
+  }
+
+  // Common install locations
+  const candidates =
+    process.platform === "win32"
+      ? [path.join(homedir(), ".opencode", "bin", "opencode.exe")]
+      : [
+          path.join(homedir(), ".opencode", "bin", "opencode"),
+          "/usr/local/bin/opencode",
+          "/opt/homebrew/bin/opencode",
+        ];
+
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+
+  // Last resort — let the OS try to find it
+  return "opencode";
+}
 
 /**
  * Start (or return existing) opencode serve for a session.
@@ -25,8 +59,9 @@ export async function startSessionServer(sessionId: string, repoPath: string): P
   // Clean up dead entry
   if (existing) servers.delete(sessionId);
 
+  const opencodeBin = resolveOpencodeBinary();
   return new Promise((resolve, reject) => {
-    const proc = spawn("opencode", ["serve", "--port", "0"], {
+    const proc = spawn(opencodeBin, ["serve", "--port", "0"], {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
       cwd: repoPath,
