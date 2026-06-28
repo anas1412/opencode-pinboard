@@ -113,7 +113,7 @@ ensure_gstreamer() {
 cmd_install() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTrack — Install              ║"
+  echo "  ║         OpenTack — Install              ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
@@ -127,7 +127,7 @@ cmd_install() {
     exit 1
   fi
 
-  info "Cloning OpenTrack..."
+  info "Cloning OpenTack..."
   git clone --depth=1 --branch "$BRANCH" "https://github.com/$REPO.git" "$INSTALL_DIR"
   ok "Cloned to $INSTALL_DIR"
 
@@ -159,7 +159,7 @@ EOF
 
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTrack is installed!          ║"
+  echo "  ║         OpenTack is installed!          ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
   echo "  Run it:"
@@ -174,12 +174,12 @@ EOF
 cmd_update() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTrack — Update               ║"
+  echo "  ║         OpenTack — Update               ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
   if [ ! -d "$INSTALL_DIR/.git" ]; then
-    err "No OpenTrack installation found at $INSTALL_DIR."
+    err "No OpenTack installation found at $INSTALL_DIR."
     echo "  Install it first: curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/opentack.sh | bash"
     exit 1
   fi
@@ -220,7 +220,7 @@ EOF
   ok "Rebuild complete"
 
   echo ""
-  echo "  OpenTrack is up to date!"  
+  echo "  OpenTack is up to date!"  
   echo ""
 }
 
@@ -229,7 +229,7 @@ EOF
 cmd_uninstall() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTrack — Uninstall            ║"
+  echo "  ║         OpenTack — Uninstall            ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
@@ -250,7 +250,7 @@ cmd_uninstall() {
   fi
 
   echo ""
-  ok "OpenTrack has been uninstalled."
+  ok "OpenTack has been uninstalled."
   echo "  bun and opencode were kept — remove them manually if desired."
   echo ""
 }
@@ -258,14 +258,14 @@ cmd_uninstall() {
 # ── Help ───────────────────────────────────────────────────────────
 
 cmd_help() {
-  echo "OpenTrack — local ticket-based workspace for opencode"
+  echo "OpenTack — local ticket-based workspace for opencode"
   echo ""
   echo "Usage: $0 <command>"
   echo ""
   echo "Commands:"
-  echo "  install     Install OpenTrack and its dependencies"
+  echo "  install     Install OpenTack and its dependencies"
   echo "  update      Pull latest version and rebuild"
-  echo "  uninstall   Remove OpenTrack (keeps bun and opencode)"
+  echo "  uninstall   Remove OpenTack (keeps bun and opencode)"
   echo ""
 }
 
