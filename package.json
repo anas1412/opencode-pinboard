@@ -11,6 +11,7 @@
     "dev:hot": "vite build --watch & (while [ ! -f dist/client/index.html ]; do sleep 0.2; done; electrobun dev)",
     "build": "vite build && electrobun build",
     "build:client": "vite build",
+    "build:installer": "bun build --compile --target=bun --outfile=dist/opentack-install ./src/installer/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "db:generate": "drizzle-kit generate",

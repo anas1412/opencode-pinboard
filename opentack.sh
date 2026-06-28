@@ -17,38 +17,93 @@ ok()    { echo -e "${GREEN}[ok]${NC}   $1"; }
 warn()  { echo -e "${YELLOW}[warn]${NC} $1"; }
 err()   { echo -e "${RED}[err]${NC}  $1"; }
 
-# ── Dependency checks ──────────────────────────────────────────────
+# ── Silent dependency installers ───────────────────────────────────
 
-check_deps() {
-  local missing=false
-
-  if ! command -v bun &>/dev/null; then
-    warn "bun is not installed."
-    echo "  Install it: curl -fsSL https://bun.sh/install | bash"
-    missing=true
-  else
-    ok "bun $(bun --version)"
-  fi
-
-  if ! command -v opencode &>/dev/null; then
-    warn "opencode is not installed."
-    echo "  Install it: curl -fsSL https://opencode.ai/install | bash"
-    echo "  Or via npm: npm install -g @opencode-ai/cli"
-    missing=true
-  else
-    ok "opencode $(opencode --version 2>/dev/null || echo 'found')"
-  fi
-
+ensure_deps() {
+  # git is required and can't be auto-installed — check first
   if ! command -v git &>/dev/null; then
-    err "git is not installed. Install it and try again."
-    missing=true
+    err "git is required. Install it and re-run."
+    exit 1
+  fi
+  ok "git $(git --version 2>/dev/null | head -1)"
+
+  # ── Bun ──────────────────────────────────────────────────────────
+  if ! command -v bun &>/dev/null; then
+    info "Installing bun..."
+    curl -fsSL https://bun.sh/install | bash
+    # Source the env additions so bun is available in this session
+    if [ -f "$HOME/.bashrc" ]; then
+      # shellcheck source=/dev/null
+      . "$HOME/.bashrc" 2>/dev/null || true
+    fi
+    # Fallback: explicitly add to PATH
+    export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+    if ! command -v bun &>/dev/null; then
+      err "bun installation failed. Check $HOME/.bun"
+      exit 1
+    fi
+  fi
+  ok "bun $(bun --version)"
+
+  # ── Opencode ─────────────────────────────────────────────────────
+  if ! command -v opencode &>/dev/null; then
+    info "Installing opencode..."
+    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+    export OPCODE_INSTALL="$HOME/.opencode"
+    export PATH="$OPCODE_INSTALL/bin:$PATH"
+    if ! command -v opencode &>/dev/null; then
+      err "opencode installation failed. Check $HOME/.opencode/bin"
+      exit 1
+    fi
+  fi
+  ok "opencode $(opencode --version 2>/dev/null || echo 'found')"
+}
+
+# ── GStreamer (Linux only — WebKit media backend) ──────────────────
+
+ensure_gstreamer() {
+  # Only relevant on Linux — WebKitGTK hardcodes enable_media=TRUE
+  # https://github.com/electrobun/electrobun (linux native wrapper)
+  [ "$(uname -s)" != "Linux" ] && return 0
+
+  # If gst-inspect-1.0 isn't available, GStreamer core isn't installed
+  # and WebKit simply won't use it (no error).
+  command -v gst-inspect-1.0 &>/dev/null || return 0
+
+  # Check if the autoaudiosink element is available
+  if gst-inspect-1.0 autoaudiosink &>/dev/null; then
+    ok "GStreamer autoaudiosink found"
+    return 0
   fi
 
-  if [ "$missing" = true ]; then
-    echo ""
-    echo "  Install missing dependencies, then re-run:"
-    echo "    curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/opentack.sh | bash"
-    exit 1
+  warn "GStreamer autoaudiosink not found — WebKit audio will produce warnings"
+
+  # Detect package manager and install the plugin package
+  local PKG_MGR PKG_NAME
+  if   command -v apt-get &>/dev/null; then PKG_MGR="apt-get"; PKG_NAME="gstreamer1.0-plugins-base"
+  elif command -v pacman  &>/dev/null; then PKG_MGR="pacman";  PKG_NAME="gst-plugins-base"
+  elif command -v dnf     &>/dev/null; then PKG_MGR="dnf";     PKG_NAME="gstreamer1-plugins-base"
+  elif command -v yum     &>/dev/null; then PKG_MGR="yum";     PKG_NAME="gstreamer1-plugins-base"
+  elif command -v zypper  &>/dev/null; then PKG_MGR="zypper";  PKG_NAME="gstreamer-plugins-base"
+  else
+    warn "Could not detect package manager."
+    warn "Install 'gst-plugins-base' manually, or ignore — the error is cosmetic."
+    return 0
+  fi
+
+  info "Installing $PKG_NAME via $PKG_MGR (may require sudo)..."
+  case "$PKG_MGR" in
+    apt-get) sudo apt-get install -y "$PKG_NAME" ;;
+    pacman)  sudo pacman -S --noconfirm "$PKG_NAME" ;;
+    dnf|yum) sudo "$PKG_MGR" install -y "$PKG_NAME" ;;
+    zypper)  sudo zypper --non-interactive install "$PKG_NAME" ;;
+  esac
+
+  if gst-inspect-1.0 autoaudiosink &>/dev/null; then
+    ok "GStreamer autoaudiosink installed"
+  else
+    warn "Installation may have failed — check manually or ignore (cosmetic only)"
   fi
 }
 
@@ -61,7 +116,8 @@ cmd_install() {
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
-  check_deps
+  ensure_deps
+  ensure_gstreamer
 
   if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists."
@@ -132,6 +188,8 @@ cmd_update() {
   info "Pulling latest changes..."
   git pull
   ok "Up to date"
+
+  ensure_gstreamer
 
   info "Updating dependencies..."
   bun install

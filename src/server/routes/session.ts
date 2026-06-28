@@ -7,7 +7,7 @@ import { join } from "path";
 import { db, schema } from "../../db";
 import { startSessionServer, stopSessionServer, getSessionPort, getSessionPid } from "../opencode-manager";
 import { emitSse } from "../sse";
-import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession, fetchOpencodeSessionCost } from "./cost-utils";
+import { enrichFromOpencode, getOpencodeDb, verifyOpencodeSession, fetchOpencodeSessionCost, updateOpencodeSessionDirectory } from "./cost-utils";
 import { createWorktreeForTicket } from "./worktree";
 
 // Track which sessions are currently improving prompts (for client polling)
@@ -341,6 +341,11 @@ export function registerSessionRoutes(app: FastifyInstance) {
       if (opencodeSessionId && !verifyOpencodeSession(opencodeSessionId)) {
         app.log.warn({ sessionId, opencodeSessionId }, "Opencode session not found — will create new one");
         opencodeSessionId = null;
+      }
+
+      // Update the opencode session's directory to match the current cwd (e.g. worktree path)
+      if (opencodeSessionId) {
+        updateOpencodeSessionDirectory(opencodeSessionId, sessionCwd);
       }
 
       await db

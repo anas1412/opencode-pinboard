@@ -6,6 +6,8 @@
 
 **Track your opencode work like a pro — without leaving your browser.**
 
+> **Not affiliated with OpenCode.** This project is built by the community, not the OpenCode team. It is not officially endorsed by or associated with [opencode](https://github.com/anomalyco/opencode) or its maintainers.
+
 OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
 
 ## Why?
@@ -37,6 +39,10 @@ Switch between **Overview** (dashboard with stats, cost charts, activity timelin
 
 - [Bun](https://bun.sh) (JavaScript runtime)
 - [opencode](https://github.com/anomalyco/opencode) (the AI coding agent)
+- **Linux only:** GStreamer base plugins (WebKit media backend)
+  - Debian/Ubuntu: `sudo apt-get install gstreamer1.0-plugins-base`
+  - Arch: `sudo pacman -S gst-plugins-base`
+  - Fedora: `sudo dnf install gstreamer1-plugins-base`
 
 ### Install
 

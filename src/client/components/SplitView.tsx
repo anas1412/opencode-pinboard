@@ -255,7 +255,6 @@ export default function SplitView() {
               src={opencodeUrl}
               className="w-full h-full border-0"
               title="opencode"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               onLoad={() => setIframeLoaded(true)}
             />
           )}

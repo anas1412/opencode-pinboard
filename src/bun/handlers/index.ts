@@ -45,7 +45,7 @@ import {
   registerRecoveredSession,
 } from "../../server/opencode-manager"
 
-import { enrichFromOpencode, deleteOpencodeSession, verifyOpencodeSession, fetchOpencodeSessionCost, getOpencodeDb } from "../../server/routes/cost-utils"
+import { enrichFromOpencode, deleteOpencodeSession, verifyOpencodeSession, fetchOpencodeSessionCost, getOpencodeDb, updateOpencodeSessionDirectory } from "../../server/routes/cost-utils"
 import { createWorktreeForTicket } from "../../server/routes/worktree"
 import { computeChangedFiles } from "../../server/routes/ticket"
 import { emitSse } from "../../server/sse"
@@ -658,19 +658,26 @@ async function sendToSession(
   sessionId: string,
   text: string,
   noReply = false,
+  retries = 3,
 ): Promise<void> {
   const url = `http://127.0.0.1:${port}/session/${sessionId}/message?directory=${encodeURIComponent(repoPath)}`
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      noReply,
-      parts: [{ type: "text", text }],
-    }),
-  })
-  if (!res.ok) {
-    const body = await res.text().catch(() => "unknown")
-    throw new Error(`Failed to send message: ${res.status} ${body.slice(0, 200)}`)
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noReply, parts: [{ type: "text", text }] }),
+      })
+      if (res.ok) return
+      const body = await res.text().catch(() => "unknown")
+      // Retry on server errors (5xx) — not on client errors (4xx)
+      if (res.status < 500 || attempt === retries - 1) {
+        throw new Error(`Failed to send message: ${res.status} ${body.slice(0, 200)}`)
+      }
+    } catch (e) {
+      if (attempt === retries - 1) throw e
+    }
+    await new Promise((r) => setTimeout(r, 500))
   }
 }
 
@@ -907,6 +914,11 @@ export async function createSession(params: { ticketId: string }) {
       opencodeSessionId = null
     }
 
+    // Update the opencode session's directory to match the current cwd (e.g. worktree path)
+    if (opencodeSessionId) {
+      updateOpencodeSessionDirectory(opencodeSessionId, sessionCwd)
+    }
+
     // Reset session end state so it appears active again
     await db
       .update(schema.sessions)
@@ -1000,7 +1012,7 @@ export async function createSession(params: { ticketId: string }) {
   if (!opencodeSessionId) {
     try {
       const settings = await getSettings()
-      opencodeSessionId = await createOpencodeSession(port, repo.localPath, ticket.title, 10, parseModel(settings.model))
+      opencodeSessionId = await createOpencodeSession(port, sessionCwd, ticket.title, 10, parseModel(settings.model))
     } catch (e) {
       console.error("[session] Failed to create opencode session:", e)
     }
@@ -1108,13 +1120,9 @@ export async function sendSessionMessage(params: { id: string; text: string }): 
   }
 
   if (!port) throw new Error("Session not running")
+  if (!session[0].opencodeSessionId) throw new Error("Session has no opencode session")
 
-  const url = `http://127.0.0.1:${port}/session/${session[0].opencodeSessionId}/message?directory=${encodeURIComponent(session[0].cwd || "")}`
-  await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ noReply: false, parts: [{ type: "text", text: params.text }] }),
-  })
+  await sendToSession(port, session[0].cwd!, session[0].opencodeSessionId, params.text)
 }
 
 export async function sessionBranch(params: { id: string }): Promise<{ branch: string }> {

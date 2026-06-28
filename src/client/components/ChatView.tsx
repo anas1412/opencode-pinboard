@@ -96,7 +96,6 @@ export default function ChatView() {
             src={opencodeUrl}
             className="w-full h-full border-0"
             title="opencode chat"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
           />
         )}
 

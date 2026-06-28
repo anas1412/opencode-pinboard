@@ -56,6 +56,32 @@ export function updateOpencodeSessionTitle(
 }
 
 /**
+ * Update the working directory of an opencode session to match the current server cwd.
+ * This keeps the session's directory in sync when resuming with a worktree path.
+ * Best-effort — non-fatal if opencode DB is unavailable.
+ */
+export function updateOpencodeSessionDirectory(
+  opencodeSessionId: string | null,
+  newDirectory: string,
+): boolean {
+  if (!opencodeSessionId) return false;
+  const ocDb = getOpencodeDbWritable();
+  if (!ocDb) return false;
+  try {
+    ocDb.run("UPDATE session SET directory = ?, time_updated = ? WHERE id = ?", [
+      newDirectory,
+      Date.now(),
+      opencodeSessionId,
+    ]);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    ocDb.close();
+  }
+}
+
+/**
  * Delete an opencode session from opencode's own DB.
  * Related rows (session_message, session_input, etc.) cascade-delete via FK.
  * This is a best-effort operation — non-fatal if opencode DB is unavailable.
