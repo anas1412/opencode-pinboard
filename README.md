@@ -44,43 +44,45 @@ Switch between **Overview** (dashboard with stats, cost charts, activity timelin
   - Arch: `sudo pacman -S gst-plugins-base`
   - Fedora: `sudo dnf install gstreamer1-plugins-base`
 
-### Install
+### Install (one-liner)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/anas1412/opentack/main/opentack.sh | bash
 ```
 
-Or do it manually:
-
+Or use the compiled installer binary (from a [release](https://github.com/anas1412/opentack/releases)):
 ```bash
-# Clone the repo
-git clone https://github.com/anas1412/opentack.git
-cd opentack
-
-# Install dependencies
-bun install
-
-# Run database migrations
-bun run db:migrate
-
-# Build the frontend and server
-bun run build
-
-# Start
-bun run dev
+# Linux
+./opentack-install-linux
+# macOS
+./opentack-install-macos
+# Windows
+opentack-install-windows.exe
 ```
 
-Open **http://localhost:3000** in your browser.
+### Run the desktop app
 
-### CLI
+After installing or building, launch the native desktop app:
+
+| Platform | Location |
+|---|---|
+| **Linux** | `build/dev-linux-x64/OpenTack-dev/bin/launcher` |
+| **macOS** | `build/dev-darwin-{arch}/OpenTack-dev.app` |
+| **Windows** | `build/dev-win32-x64/OpenTack-dev/OpenTack-dev.exe` |
+
+Or from the project directory:
+```bash
+bun run dev          # Dev mode with hot-reload, opens desktop window
+```
+
+### Build manually
 
 ```bash
-# After building, you can also run it directly:
-./dist/server/cli.js
-# Or if linked globally:
-opentack
-# Set a custom port:
-OPENTACK_PORT=4000 opentack
+git clone https://github.com/anas1412/opentack.git
+cd opentack
+bun install
+bun run db:migrate
+bun run build        # Produces the native desktop app in build/
 ```
 
 ### Update

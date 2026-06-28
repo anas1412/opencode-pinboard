@@ -276,9 +276,10 @@ async function installOpenTack(): Promise<void> {
     ok("Default opencode theme set to 'opencode'")
   }
 
-  // Build frontend
+  // Build desktop app (Vite + electrobun)
+  info("Building desktop app...")
   await $`bun run build`.cwd(dir)
-  ok("Build complete")
+  ok("Desktop app built")
 }
 
 // ── Main ──────────────────────────────────────────────────────────
@@ -298,12 +299,13 @@ function printHelp() {
   console.log("  OPENTACK_DATA_DIR  Data directory  (default: ~/.opentack)")
   console.log()
   console.log("What it does:")
-console.log("  1. Checks for git (must be pre-installed)")
-console.log("  2. Installs bun silently if missing")
-console.log("  3. Installs opencode silently if missing")
-console.log("  4. Installs GStreamer plugins (Linux only — WebKit media)")
-console.log("  5. Clones the OpenTack repo")
-console.log("  6. Runs bun install, DB migrations, and frontend build")
+  console.log("  1. Checks for git (must be pre-installed)")
+  console.log("  2. Installs bun silently if missing")
+  console.log("  3. Installs opencode silently if missing")
+  console.log("  4. Installs GStreamer plugins (Linux only — WebKit media)")
+  console.log("  5. Clones the OpenTack repo")
+  console.log("  6. Runs bun install, DB migrations, and frontend build")
+  console.log("  7. Builds the native desktop app (via electrobun)")
   console.log()
 }
 
@@ -327,9 +329,25 @@ async function main() {
   await ensureGStreamer()
   await installOpenTack()
 
+  // Map platform/arch to electrobun build output path
+  const arch = process.arch === "x64" ? "x64" : process.arch
+  const platformMap: Record<string, string> = {
+    win32: `win32-${arch}`,
+    darwin: `darwin-${arch}`,
+    linux: `linux-${arch}`,
+  }
+  const buildDir = `build/dev-${platformMap[process.platform] || "linux-x64"}`
+  const appName = "OpenTack-dev"
+  const binaryPath =
+    process.platform === "win32"
+      ? `${buildDir}\\${appName}\\${appName}.exe`
+      : process.platform === "darwin"
+        ? `${buildDir}/${appName}.app`
+        : `${buildDir}/${appName}/bin/launcher`
+
   banner("OpenTack is installed!")
   console.log(`  ${BOLD}Run it:${NC}`)
-  console.log(`    cd ${INSTALL_DIR} && bun run dev`)
+  console.log(`    ${path.join(INSTALL_DIR, binaryPath)}`)
   console.log()
   console.log(`  ${BOLD}Data directory:${NC} ${DATA_DIR}`)
   console.log()
