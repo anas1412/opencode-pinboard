@@ -5,10 +5,10 @@ import { useRepos, useDeleteRepo } from "../hooks/useRepos";
 import { useTickets } from "../hooks/useTickets";
 import { useCostSummary } from "../hooks/useCostSummary";
 import { fetchChats, createChat, type ChatSession } from "../api/chats";
-import { checkUpdates } from "../api/version";
+import { checkUpdates, downloadUpdate } from "../api/version";
 import type { CheckUpdatesResponse } from "../../shared/types";
 import AddRepoModal from "./AddRepoModal";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2, ExternalLink } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw } from "lucide-react";
 
 function useUrlRepoId(): string | undefined {
   const search = useSearch({ strict: false }) as Record<string, unknown>;
@@ -29,6 +29,8 @@ export default function Sidebar() {
   const [creatingChat, setCreatingChat] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<{ state: "idle" | "checking" | "done"; data?: CheckUpdatesResponse }>({ state: "idle" });
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [downloadPhase, setDownloadPhase] = useState<"idle" | "downloading" | "ready" | "error">("idle");
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // Auto-check for updates on mount
   useEffect(() => {
@@ -248,7 +250,7 @@ export default function Sidebar() {
           try {
             const result = await checkUpdates();
             setUpdateStatus({ state: "done", data: result });
-            if (result.hasUpdate) setUpdateModalOpen(true);
+            if (result.hasUpdate) { setDownloadPhase("idle"); setDownloadError(null); setUpdateModalOpen(true); }
           } catch {
             setUpdateStatus({ state: "done", data: { currentVersion: __APP_VERSION__, latestVersion: null, hasUpdate: false, error: "Network error" } });
           }
@@ -272,38 +274,81 @@ export default function Sidebar() {
 
       {/* Update modal */}
       {updateModalOpen && updateStatus.data && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setUpdateModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setUpdateModalOpen(false); setDownloadPhase("idle"); setDownloadError(null); }}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-medium text-zinc-200 mb-3">Updates</h3>
-            {updateStatus.data.error ? (
-              <p className="text-xs text-red-400 mb-3">Could not check: {updateStatus.data.error}</p>
-            ) : updateStatus.data.hasUpdate ? (
-              <div>
-                <p className="text-xs text-zinc-400 mb-1">
-                  Current: <span className="text-zinc-300 font-mono">v{updateStatus.data.currentVersion}</span>
-                </p>
-                <p className="text-xs text-green-400 mb-3">
-                  Available: <span className="font-mono">{updateStatus.data.latestVersion}</span>
-                </p>
+            <h3 className="text-sm font-medium text-zinc-200 mb-3">Update Available</h3>
+            <p className="text-xs text-zinc-400 mb-1">
+              Current: <span className="text-zinc-300 font-mono">v{updateStatus.data.currentVersion}</span>
+            </p>
+            <p className="text-xs text-green-400 mb-4">
+              Latest: <span className="font-mono">{updateStatus.data.latestVersion}</span>
+            </p>
+
+            {downloadPhase === "idle" && (
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={async () => {
+                    setDownloadPhase("downloading");
+                    setDownloadError(null);
+                    try {
+                      const res = await downloadUpdate();
+                      if (res.success) setDownloadPhase("ready");
+                      else { setDownloadPhase("error"); setDownloadError(res.error || "Download failed"); }
+                    } catch {
+                      setDownloadPhase("error");
+                      setDownloadError("Failed to download update");
+                    }
+                  }}
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+                >
+                  <Download size={13} />
+                  Download Update
+                </button>
                 <a
                   href={`https://github.com/anas1412/opentack/releases/${updateStatus.data.latestVersion}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
                   View Release <ExternalLink size={11} />
                 </a>
               </div>
-            ) : (
-              <div>
-                <p className="text-xs text-zinc-400 mb-1">
-                  Current: <span className="text-zinc-300 font-mono">v{updateStatus.data.currentVersion}</span>
-                </p>
-                <p className="text-xs text-emerald-400">You're on the latest version.</p>
+            )}
+
+            {downloadPhase === "downloading" && (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <Loader2 size={18} className="animate-spin text-zinc-400" />
+                <p className="text-xs text-zinc-400">Downloading...</p>
               </div>
             )}
+
+            {downloadPhase === "ready" && (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-emerald-400 mb-1">Downloaded. Close the app to install — the installer will replace the files.</p>
+                <button
+                  onClick={() => { setUpdateModalOpen(false); setDownloadPhase("idle"); }}
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-700 text-white hover:bg-emerald-600 transition-colors"
+                >
+                  <RotateCcw size={13} />
+                  Close & Install (restart after)
+                </button>
+              </div>
+            )}
+
+            {downloadPhase === "error" && (
+              <div>
+                <p className="text-xs text-red-400 mb-3">{downloadError}</p>
+                <button
+                  onClick={() => setDownloadPhase("idle")}
+                  className="w-full px-3 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
             <button
-              onClick={() => setUpdateModalOpen(false)}
+              onClick={() => { setUpdateModalOpen(false); setDownloadPhase("idle"); setDownloadError(null); }}
               className="mt-3 w-full px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               Close

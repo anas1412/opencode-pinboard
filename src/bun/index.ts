@@ -79,6 +79,7 @@ const rpc = BrowserView.defineRPC<OpenTackRPC>({
 
       // Version / Updates
       checkUpdates: () => handlers.checkUpdates(),
+      downloadUpdate: () => handlers.downloadUpdate(),
 
       // System
       health: () => handlers.health(),

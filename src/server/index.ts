@@ -66,6 +66,11 @@ async function buildApp() {
     return checkUpdates()
   });
 
+  app.post("/api/version/download-update", async () => {
+    const { downloadUpdate } = await import("../bun/handlers/index")
+    return downloadUpdate()
+  });
+
   // ── API routes ───────────────────────────────────────────────────
   registerRepoRoutes(app);
   registerTicketRoutes(app);

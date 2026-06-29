@@ -2,8 +2,8 @@ import { db, schema } from "../../db"
 import { eq, and, or, isNull, isNotNull, like, sql, inArray, desc, gt, gte, lte } from "drizzle-orm"
 import { randomUUID } from "crypto"
 import { execSync } from "child_process"
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "fs"
-import { homedir } from "os"
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, chmodSync } from "fs"
+import { homedir, tmpdir } from "os"
 import {
   getOpencodeConfigDir,
   getOpencodeConfigPath,
@@ -31,6 +31,7 @@ import type {
   AgentEntry,
   JournalResponse,
   CheckUpdatesResponse,
+  DownloadUpdateResponse,
 } from "../../shared/types"
 
 import { createOpencodeSession, parseModel, type OpencodeModel } from "../opencode-session"
@@ -1814,5 +1815,31 @@ export async function checkUpdates(): Promise<CheckUpdatesResponse> {
     return { currentVersion, latestVersion, hasUpdate }
   } catch (err) {
     return { currentVersion, latestVersion: null, hasUpdate: false, error: (err as Error).message }
+  }
+}
+
+export async function downloadUpdate(): Promise<DownloadUpdateResponse> {
+  const platform = process.platform
+  if (platform !== "linux" && platform !== "win32") {
+    return { success: false, error: "Updates not supported on this platform" }
+  }
+
+  const filename = platform === "win32" ? "opentack-install-windows.exe" : "opentack-install-linux"
+  const url = `https://github.com/anas1412/opentack/releases/latest/download/${filename}`
+  const installerPath = path.join(tmpdir(), filename)
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(120000) })
+    if (!res.ok) return { success: false, error: `Download failed (${res.status})` }
+
+    writeFileSync(installerPath, Buffer.from(await res.arrayBuffer()))
+    if (platform !== "win32") chmodSync(installerPath, 0o755)
+
+    // Spawn detached — survives app exit
+    Bun.spawn([installerPath], { detached: true, stdio: ["ignore", "ignore", "ignore"] })
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: (err as Error).message }
   }
 }

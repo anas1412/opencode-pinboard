@@ -14,6 +14,7 @@ import type {
   AgentEntry,
   JournalResponse,
   CheckUpdatesResponse,
+  DownloadUpdateResponse,
 } from "./types"
 
 /**
@@ -149,6 +150,7 @@ export type OpenTackRPC = {
 
       // ─── Version / Updates ────────────────────────────────
       checkUpdates: { params: void; response: CheckUpdatesResponse }
+      downloadUpdate: { params: void; response: DownloadUpdateResponse }
 
       // ─── System dialogs ────────────────────────────────────
       pickDirectory: { params: void; response: string | null }

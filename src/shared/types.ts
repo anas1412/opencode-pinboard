@@ -221,6 +221,11 @@ export interface CheckUpdatesResponse {
   error?: string;
 }
 
+export interface DownloadUpdateResponse {
+  success: boolean;
+  error?: string;
+}
+
 // ─── Opencode config (opencode.json) ─────────────────────────────────────
 
 export interface OpencodeConfig {
