@@ -444,15 +444,42 @@ export async function updateTicket(params: { id: string } & TicketUpdateInput): 
             .update(schema.sessions)
             .set({ exitCode: 0, exitReason: "user_stopped", endedAt: Date.now() })
             .where(eq(schema.sessions.id, existing[0].activeSessionId))
+          // Brief pause for opencode process to release the worktree
+          await new Promise((r) => setTimeout(r, 500))
         }
-        // Remove worktree + prune + delete branch
+        // Remove worktree + prune (safely delete branch if merged)
         Bun.spawnSync(["git", "worktree", "remove", existing[0].worktreePath])
         Bun.spawnSync(["git", "worktree", "remove", "--force", existing[0].worktreePath])
         Bun.spawnSync(["git", "worktree", "prune"])
-        Bun.spawnSync(["git", "branch", "-D", existing[0].branch])
+        Bun.spawnSync(["git", "branch", "-d", existing[0].branch])
       } catch {}
       updates.worktreePath = null
     }
+  }
+
+  // Submit for Review: push branch to origin
+  if (existing[0].status === "in_progress" && data.status === "needs_review") {
+    try {
+      const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, existing[0].repoId)).limit(1)
+      if (repo) {
+        Bun.spawnSync(["git", "push", "origin", existing[0].branch as string], { cwd: repo.localPath })
+      }
+    } catch {}
+  }
+
+  // Merge & Resolve: fast-forward merge via remote push
+  if (existing[0].status === "needs_review" && data.status === "resolved") {
+    try {
+      const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, existing[0].repoId)).limit(1)
+      if (repo) {
+        Bun.spawnSync(["git", "push", "origin", `${existing[0].branch}:${existing[0].baseBranch || "main"}`], { cwd: repo.localPath })
+      }
+    } catch {}
+  }
+
+  // Reopening from resolved/closed → clear resolvedAt
+  if ((existing[0].status === "resolved" || existing[0].status === "closed") && data.status && data.status !== "resolved" && data.status !== "closed") {
+    updates.resolvedAt = null
   }
 
   await db.update(schema.tickets).set(updates).where(eq(schema.tickets.id, params.id))
@@ -562,8 +589,11 @@ ${transcriptText}
 
   // ── 4. Run opencode CLI with the prompt (no server needed — self-contained) ──
   const settings = await getSettings()
+  const opencodeCfg = await getOpencodeConfig()
   const modelFlag = settings.model ? ["--model", settings.model] : []
-  const runProc = Bun.spawn(["opencode", "run", ...modelFlag, "--agent", "plan", prompt], {
+  const cfgAgent = opencodeCfg.default_agent || ""
+  const agentFlag = (cfgAgent && cfgAgent !== "auto" && cfgAgent !== "ask") ? ["--agent", cfgAgent] : []
+  const runProc = Bun.spawn(["opencode", "run", ...modelFlag, ...agentFlag, prompt], {
     stdio: ["ignore", "pipe", "pipe"],
     env: { ...process.env },
   })
@@ -1656,11 +1686,15 @@ export async function removeWorktree(params: { ticketId: string }): Promise<void
   // Stop active session
   if (ticket[0].activeSessionId) {
     stopSessionServer(ticket[0].activeSessionId)
+    // Brief pause for opencode process to release the worktree
+    await new Promise((r) => setTimeout(r, 500))
   }
 
   if (ticket[0].worktreePath) {
     Bun.spawnSync(["git", "worktree", "remove", ticket[0].worktreePath])
-    Bun.spawnSync(["git", "branch", "-D", ticket[0].branch])
+    Bun.spawnSync(["git", "worktree", "remove", "--force", ticket[0].worktreePath])
+    Bun.spawnSync(["git", "worktree", "prune"])
+    Bun.spawnSync(["git", "branch", "-d", ticket[0].branch])
   }
 
   await db

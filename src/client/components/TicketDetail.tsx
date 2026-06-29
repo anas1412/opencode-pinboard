@@ -6,7 +6,7 @@ import { useRepos } from "../hooks/useRepos";
 import { useNavigate } from "@tanstack/react-router";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_CATEGORIES } from "../../shared/types";
-import { Clock, GitBranch, DollarSign, FileCode, Pencil, X, Trash2, Check } from "lucide-react";
+import { Clock, GitBranch, DollarSign, FileCode, Pencil, X, Trash2, Check, RotateCcw, CheckCircle, Ban, ArrowLeft, GitPullRequest, GitMerge } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   open: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -16,6 +16,61 @@ const STATUS_COLORS: Record<string, string> = {
   resolved: "bg-green-500/20 text-green-400 border-green-500/30",
   closed: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
 };
+
+interface StatusAction {
+  label: string;
+  nextStatus: TicketStatus;
+  icon: React.ReactNode;
+  color: string; // Tailwind classes for the button
+}
+
+const STATUS_ACTIONS: Record<string, StatusAction[]> = {
+  open: [
+    { label: "Make In Progress", nextStatus: "in_progress", icon: <ArrowLeft size={13} />, color: "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" },
+  ],
+  in_progress: [
+    { label: "Submit for Review", nextStatus: "needs_review", icon: <GitPullRequest size={13} />, color: "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10" },
+    { label: "Close Ticket", nextStatus: "closed", icon: <Ban size={13} />, color: "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" },
+    { label: "Mark as Resolved", nextStatus: "resolved", icon: <CheckCircle size={13} />, color: "text-green-500 hover:text-green-400 hover:bg-green-500/10" },
+  ],
+  needs_review: [
+    { label: "Make In Progress", nextStatus: "in_progress", icon: <ArrowLeft size={13} />, color: "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" },
+    { label: "Merge & Resolve", nextStatus: "resolved", icon: <GitMerge size={13} />, color: "text-green-500 hover:text-green-400 hover:bg-green-500/10" },
+    { label: "Request Changes", nextStatus: "changes_requested", icon: <RotateCcw size={13} />, color: "text-red-400 hover:text-red-300 hover:bg-red-500/10" },
+  ],
+  changes_requested: [
+    { label: "Make In Progress", nextStatus: "in_progress", icon: <ArrowLeft size={13} />, color: "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" },
+  ],
+  resolved: [
+    { label: "Needs Review", nextStatus: "needs_review", icon: <RotateCcw size={13} />, color: "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10" },
+    { label: "Request Changes", nextStatus: "changes_requested", icon: <RotateCcw size={13} />, color: "text-red-400 hover:text-red-300 hover:bg-red-500/10" },
+  ],
+  closed: [
+    { label: "Needs Review", nextStatus: "needs_review", icon: <RotateCcw size={13} />, color: "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10" },
+    { label: "Request Changes", nextStatus: "changes_requested", icon: <RotateCcw size={13} />, color: "text-red-400 hover:text-red-300 hover:bg-red-500/10" },
+  ],
+};
+
+function StatusActions({ status, ticketId }: { status: TicketStatus; ticketId: string }) {
+  const updateTicket = useUpdateTicket();
+  const actions = STATUS_ACTIONS[status];
+  if (!actions || actions.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {actions.map((action) => (
+        <button
+          key={action.nextStatus}
+          onClick={() => updateTicket.mutate({ id: ticketId, input: { status: action.nextStatus } })}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${action.color}`}
+        >
+          {action.icon}
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 interface TicketDetailProps {
   ticketId: string;
@@ -292,6 +347,11 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             <p className="text-xs text-zinc-600 italic">No session yet</p>
           )}
         </div>
+      </div>
+
+      {/* ── Status Actions ── */}
+      <div className="border-t border-zinc-800 px-4 py-3 flex items-center justify-center gap-2">
+        <StatusActions status={ticket.status} ticketId={ticket.id} />
       </div>
     </div>
     );
