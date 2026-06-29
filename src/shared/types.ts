@@ -212,6 +212,15 @@ export interface OpencodeTuiConfig {
   theme?: OpencodeTheme;
 }
 
+// ─── Version / Updates ───────────────────────────────────────────────────
+
+export interface CheckUpdatesResponse {
+  currentVersion: string;
+  latestVersion: string | null;
+  hasUpdate: boolean;
+  error?: string;
+}
+
 // ─── Opencode config (opencode.json) ─────────────────────────────────────
 
 export interface OpencodeConfig {

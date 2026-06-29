@@ -5,8 +5,10 @@ import { useRepos, useDeleteRepo } from "../hooks/useRepos";
 import { useTickets } from "../hooks/useTickets";
 import { useCostSummary } from "../hooks/useCostSummary";
 import { fetchChats, createChat, type ChatSession } from "../api/chats";
+import { checkUpdates } from "../api/version";
+import type { CheckUpdatesResponse } from "../../shared/types";
 import AddRepoModal from "./AddRepoModal";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2 } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2, ExternalLink } from "lucide-react";
 
 function useUrlRepoId(): string | undefined {
   const search = useSearch({ strict: false }) as Record<string, unknown>;
@@ -25,6 +27,16 @@ export default function Sidebar() {
   const [activeChats, setActiveChats] = useState<ChatSession[]>([]);
   const [chatRepoModal, setChatRepoModal] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<{ state: "idle" | "checking" | "done"; data?: CheckUpdatesResponse }>({ state: "idle" });
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+
+  // Auto-check for updates on mount
+  useEffect(() => {
+    setUpdateStatus({ state: "checking" });
+    checkUpdates()
+      .then((result) => setUpdateStatus({ state: "done", data: result }))
+      .catch(() => setUpdateStatus({ state: "done", data: { currentVersion: __APP_VERSION__, latestVersion: null, hasUpdate: false, error: "Network error" } }));
+  }, []);
 
   // Poll active chats
   useEffect(() => {
@@ -228,6 +240,77 @@ export default function Sidebar() {
         <Settings2 size={13} />
         Settings
       </button>
+
+      {/* Version + update status */}
+      <button
+        onClick={async () => {
+          setUpdateStatus({ state: "checking" });
+          try {
+            const result = await checkUpdates();
+            setUpdateStatus({ state: "done", data: result });
+            if (result.hasUpdate) setUpdateModalOpen(true);
+          } catch {
+            setUpdateStatus({ state: "done", data: { currentVersion: __APP_VERSION__, latestVersion: null, hasUpdate: false, error: "Network error" } });
+          }
+        }}
+        className="flex items-center justify-between w-full px-4 py-1.5 border-t border-zinc-800/60 text-[11px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+        title={updateStatus.data?.error ? updateStatus.data.error : "Check for updates"}
+      >
+        <span>v{__APP_VERSION__}</span>
+        <span className="flex items-center gap-1">
+          {updateStatus.state === "checking" ? (
+            <><Loader2 size={10} className="animate-spin" /> checking</>
+          ) : updateStatus.data?.hasUpdate ? (
+            <span className="text-amber-400">⬆ {updateStatus.data.latestVersion}</span>
+          ) : updateStatus.data?.error ? (
+            <span className="text-red-400">?</span>
+          ) : updateStatus.state === "done" ? (
+            <span className="text-emerald-500">✓ up to date</span>
+          ) : null}
+        </span>
+      </button>
+
+      {/* Update modal */}
+      {updateModalOpen && updateStatus.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setUpdateModalOpen(false)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-80 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-medium text-zinc-200 mb-3">Updates</h3>
+            {updateStatus.data.error ? (
+              <p className="text-xs text-red-400 mb-3">Could not check: {updateStatus.data.error}</p>
+            ) : updateStatus.data.hasUpdate ? (
+              <div>
+                <p className="text-xs text-zinc-400 mb-1">
+                  Current: <span className="text-zinc-300 font-mono">v{updateStatus.data.currentVersion}</span>
+                </p>
+                <p className="text-xs text-green-400 mb-3">
+                  Available: <span className="font-mono">{updateStatus.data.latestVersion}</span>
+                </p>
+                <a
+                  href={`https://github.com/anas1412/opentack/releases/${updateStatus.data.latestVersion}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs font-medium bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+                >
+                  View Release <ExternalLink size={11} />
+                </a>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-zinc-400 mb-1">
+                  Current: <span className="text-zinc-300 font-mono">v{updateStatus.data.currentVersion}</span>
+                </p>
+                <p className="text-xs text-emerald-400">You're on the latest version.</p>
+              </div>
+            )}
+            <button
+              onClick={() => setUpdateModalOpen(false)}
+              className="mt-3 w-full px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <AddRepoModal open={addRepoOpen} onClose={() => setAddRepoOpen(false)} />
 

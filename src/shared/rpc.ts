@@ -13,6 +13,7 @@ import type {
   OpencodeTuiConfig,
   AgentEntry,
   JournalResponse,
+  CheckUpdatesResponse,
 } from "./types"
 
 /**
@@ -145,6 +146,9 @@ export type OpenTackRPC = {
       createWorktree: { params: { ticketId: string }; response: void }
       listWorktrees: { params: void; response: Ticket[] }
       removeWorktree: { params: { ticketId: string }; response: void }
+
+      // ─── Version / Updates ────────────────────────────────
+      checkUpdates: { params: void; response: CheckUpdatesResponse }
 
       // ─── System dialogs ────────────────────────────────────
       pickDirectory: { params: void; response: string | null }

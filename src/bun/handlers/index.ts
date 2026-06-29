@@ -30,6 +30,7 @@ import type {
   OpencodeTuiConfig,
   AgentEntry,
   JournalResponse,
+  CheckUpdatesResponse,
 } from "../../shared/types"
 
 import { createOpencodeSession, parseModel, type OpencodeModel } from "../opencode-session"
@@ -1784,4 +1785,34 @@ export async function pickDirectory(): Promise<string | null> {
       resolve(answer || null)
     })
   })
+}
+
+// ─── Version / Updates ──────────────────────────────────────────────────
+
+export async function checkUpdates(): Promise<CheckUpdatesResponse> {
+  // Derive version from git tag first (always matches at build time), fall back to package.json
+  let currentVersion = "0.0.0"
+  try {
+    const tag = execSync("git describe --tags --abbrev=0", { encoding: "utf-8", cwd: path.resolve(import.meta.dir, "../..") }).trim()
+    if (tag) currentVersion = tag.replace(/^v/, "")
+  } catch {
+    const pkg = JSON.parse(readFileSync(path.resolve(import.meta.dir, "../../package.json"), "utf-8"))
+    currentVersion = pkg.version || "0.0.0"
+  }
+
+  try {
+    // HEAD request without following redirects — read `Location` for latest tag
+    const res = await fetch("https://github.com/anas1412/opentack/releases/latest", {
+      method: "HEAD",
+      redirect: "manual",
+      signal: AbortSignal.timeout(10000),
+    })
+    const location = res.headers.get("location") || ""
+    const match = location.match(/\/tag\/(.+)$/)
+    const latestVersion = match ? match[1] : null
+    const hasUpdate = latestVersion !== null && latestVersion !== `v${currentVersion}`
+    return { currentVersion, latestVersion, hasUpdate }
+  } catch (err) {
+    return { currentVersion, latestVersion: null, hasUpdate: false, error: (err as Error).message }
+  }
 }

@@ -102,6 +102,7 @@ const REST_MAP: Record<string, RestRoute> = {
   listWorktrees: { method: "GET", path: "/api/worktrees" },
   removeWorktree: { method: "DELETE", path: (p) => `/api/worktrees/${p.ticketId}` },
   pickDirectory: { method: "GET", path: "/api/system/pick-directory" },
+  checkUpdates: { method: "GET", path: "/api/version/check-updates" },
 }
 
 async function fallbackFetch(method: string, params: any): Promise<any> {

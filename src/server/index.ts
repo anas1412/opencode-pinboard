@@ -60,6 +60,12 @@ async function buildApp() {
     });
   });
 
+  // ── Version / Updates ─────────────────────────────────────────
+  app.get("/api/version/check-updates", async () => {
+    const { checkUpdates } = await import("../bun/handlers/index")
+    return checkUpdates()
+  });
+
   // ── API routes ───────────────────────────────────────────────────
   registerRepoRoutes(app);
   registerTicketRoutes(app);
