@@ -518,42 +518,35 @@ export async function generateNotes(params: { id: string }): Promise<{ notes: st
 
   if (!session || !session.opencodeSessionId) throw new Error("No session found. Start a session first.")
 
-  const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, ticket.repoId)).limit(1)
-  if (!repo) throw new Error("Repo not found")
+  // ── 1. Export session transcript via opencode CLI (reads local DB, no server needed) ──
+  const exportProc = Bun.spawn(["opencode", "export", session.opencodeSessionId], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env },
+  })
+  const [exportStdout, exportStderr] = await Promise.all([
+    new Response(exportProc.stdout).text(),
+    new Response(exportProc.stderr).text(),
+  ])
+  const exportExit = await exportProc.exited
+  if (exportExit !== 0) throw new Error(`Failed to export session: ${exportStderr.slice(0, 200)}`)
 
-  // Start a temp opencode server for summarization
-  const notesSessionId = `notes-${randomUUID()}`
-  let port: number
-  try {
-    port = await startSessionServer(notesSessionId, repo.localPath)
-  } catch {
-    throw new Error("Could not start opencode server to generate notes.")
-  }
+  const exportData = JSON.parse(exportStdout)
 
-  try {
-    // Fetch session messages from opencode
-    const msgRes = await fetch(
-      `http://127.0.0.1:${port}/session/${session.opencodeSessionId}/message?directory=${encodeURIComponent(repo.localPath)}`,
-    )
-    if (!msgRes.ok) throw new Error("Failed to read opencode session messages.")
+  // ── 2. Build transcript from messages ──
+  const transcriptText = (exportData.messages ?? [])
+    .filter((m: any) => m.info?.role === "user" || m.info?.role === "assistant")
+    .map((m: any) => {
+      const text = (m.parts ?? [])
+        .filter((p: any) => p.type === "text")
+        .map((p: any) => p.text ?? "")
+        .join(" ")
+      return `[${m.info.role}]: ${text}`
+    })
+    .join("\n\n")
+    .slice(0, 30_000)
 
-    type MainMessage = { info: { role: string }; parts: Array<{ type: string; text?: string }> }
-    const mainMessages = await msgRes.json() as MainMessage[]
-
-    // Build transcript
-    const transcriptText = (Array.isArray(mainMessages) ? mainMessages : [])
-      .filter((m) => m.info?.role === "user" || m.info?.role === "assistant")
-      .map((m) => {
-        const text = (m.parts ?? [])
-          .filter((p) => p.type === "text")
-          .map((p) => p.text ?? "")
-          .join(" ")
-        return `[${m.info.role}]: ${text}`
-      })
-      .join("\n\n")
-      .slice(0, 30_000)
-
-    const prompt = `Based ONLY on the session transcript below, write a brief summary (2-3 bullet points) of what was accomplished in this session.
+  // ── 3. Build summarization prompt ──
+  const prompt = `Based ONLY on the session transcript below, write a brief summary (2-3 bullet points) of what was accomplished in this session.
 
 Rules:
 - Use ONLY the transcript below. Do NOT scan the repo, check git history, or reference anything outside this transcript.
@@ -567,74 +560,39 @@ Description: ${ticket.description?.slice(0, 300) ?? ""}
 ${transcriptText}
 </transcript>`
 
-    // Create a temp session for summarization
-    const genSettings = await getSettings()
-    const tempSessionId = await createOpencodeSession(port, repo.localPath, "summarize", 1, parseModel(genSettings.model))
+  // ── 4. Run opencode CLI with the prompt (no server needed — self-contained) ──
+  const settings = await getSettings()
+  const modelFlag = settings.model ? ["--model", settings.model] : []
+  const runProc = Bun.spawn(["opencode", "run", ...modelFlag, "--agent", "plan", prompt], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env },
+  })
+  const [runStdout, runStderr] = await Promise.all([
+    new Response(runProc.stdout).text(),
+    new Response(runProc.stderr).text(),
+  ])
+  const runExit = await runProc.exited
+  if (runExit !== 0) throw new Error(`Failed to generate notes: ${runStderr.slice(0, 200)}`)
 
-    let costUsd = 0
-    try {
-      // Send summarization prompt
-      const msgRes2 = await fetch(
-        `http://127.0.0.1:${port}/session/${tempSessionId}/message?directory=${encodeURIComponent(repo.localPath)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ noReply: false, parts: [{ type: "text", text: prompt }] }),
-        },
-      )
-      if (!msgRes2.ok) throw new Error("Failed to send prompt")
+  const notes = runStdout.trim() || "Session notes generated."
 
-      // Wait for AI to finish
-      const waitRes = await fetch(`http://127.0.0.1:${port}/api/session/${tempSessionId}/wait`, { method: "POST" })
-      if (!waitRes.ok) throw new Error(`Wait endpoint returned ${waitRes.status}`)
+  // ── 5. Save to ticket ──
+  await db.update(schema.tickets).set({ notes, updatedAt: Date.now() }).where(eq(schema.tickets.id, params.id))
 
-      // Read the AI response
-      const msgListRes = await fetch(
-        `http://127.0.0.1:${port}/session/${tempSessionId}/message?directory=${encodeURIComponent(repo.localPath)}`,
-      )
-      type Msg = { info: { role: string }; parts: Array<{ type: string; text?: string }> }
-      const messages = await msgListRes.json() as Msg[]
+  // ── 6. Cost from export data (best-effort) ──
+  const costUsd = exportData.info?.cost ?? 0
+  try {
+    await db.insert(schema.appCost).values({
+      id: randomUUID(),
+      type: "generate_notes",
+      ticketId: params.id,
+      costUsd,
+      totalTokens: exportData.info?.tokens?.input + exportData.info?.tokens?.output || 0,
+      createdAt: Date.now(),
+    })
+  } catch { /* best-effort */ }
 
-      let notes = (Array.isArray(messages) ? messages : [])
-        .filter((m) => m.info?.role === "assistant")
-        .flatMap((m) => m.parts ?? [])
-        .filter((p) => p.type === "text" && p.text)
-        .map((p) => p.text!.trim())
-        .filter(Boolean)
-        .join("\n")
-
-      // Save cost
-      try {
-        const cost = fetchOpencodeSessionCost(tempSessionId)
-        if (cost) {
-          costUsd = cost.costUsd
-          await db.insert(schema.appCost).values({
-            id: randomUUID(),
-            type: "generate_notes",
-            ticketId: params.id,
-            costUsd: cost.costUsd,
-            totalTokens: cost.totalTokens,
-            createdAt: Date.now(),
-          })
-        }
-      } catch { /* best-effort */ }
-
-      if (!notes) notes = "Session notes generated."
-
-      // Save to ticket
-      await db.update(schema.tickets).set({ notes, updatedAt: Date.now() }).where(eq(schema.tickets.id, params.id))
-
-      return { notes, costUsd }
-    } finally {
-      // Clean up temp session
-      fetch(
-        `http://127.0.0.1:${port}/session/${tempSessionId}?directory=${encodeURIComponent(repo.localPath)}`,
-        { method: "DELETE" },
-      ).catch(() => {})
-    }
-  } finally {
-    stopSessionServer(notesSessionId)
-  }
+  return { notes, costUsd }
 }
 
 export async function batchUpdateTickets(params: { ids: string[]; status?: string; priority?: string; category?: string }): Promise<void> {
@@ -700,13 +658,14 @@ async function generateAndSendImprovedPrompt(
   opencodeSessionId: string,
   description: string,
   model: OpencodeModel | undefined,
+  agent: string | undefined,
   onInjecting?: () => void,
 ): Promise<void> {
   const tempLabel = `improve-${randomUUID().slice(0, 8)}`
 
   try {
     // 1. Create a temporary session on the same server
-    const tempSessionId = await createOpencodeSession(port, repoPath, tempLabel, 1, model)
+    const tempSessionId = await createOpencodeSession(port, repoPath, tempLabel, 1, model, agent)
 
     try {
       // 2. Build improvement prompt
@@ -1022,7 +981,9 @@ export async function createSession(params: { ticketId: string }) {
   if (!opencodeSessionId) {
     try {
       const settings = await getSettings()
-      opencodeSessionId = await createOpencodeSession(port, sessionCwd, ticket.title, 10, parseModel(settings.model))
+      const cfg = await getOpencodeConfig()
+      const agent = cfg.default_agent && cfg.default_agent !== "auto" && cfg.default_agent !== "ask" ? cfg.default_agent : "plan"
+      opencodeSessionId = await createOpencodeSession(port, sessionCwd, ticket.title, 10, parseModel(settings.model), agent)
     } catch (e) {
       console.error("[session] Failed to create opencode session:", e)
     }
@@ -1096,12 +1057,15 @@ export async function improveSession(params: { id: string; description?: string 
 
   try {
     const settings = await getSettings()
+    const cfg = await getOpencodeConfig()
+    const agent = cfg.default_agent && cfg.default_agent !== "auto" && cfg.default_agent !== "ask" ? cfg.default_agent : "plan"
     await generateAndSendImprovedPrompt(
       port,
       sess[0].cwd || "",
       sess[0].opencodeSessionId,
       description,
       parseModel(settings.model),
+      agent,
       () => {
         emitSse({ type: "session.improving.injecting", sessionId: params.id })
       },
@@ -1166,7 +1130,9 @@ export async function createChat(params: { repoId: string; model?: string; promp
   try {
     const settings = await getSettings()
     modelStr = settings.model || ""
-    opencodeSessionId = await createOpencodeSession(opencodePort, repo[0].localPath, `Chat: ${repo[0].name}`, 1, parseModel(settings.model))
+    const cfg = await getOpencodeConfig()
+    const agent = cfg.default_agent && cfg.default_agent !== "auto" && cfg.default_agent !== "ask" ? cfg.default_agent : "plan"
+    opencodeSessionId = await createOpencodeSession(opencodePort, repo[0].localPath, `Chat: ${repo[0].name}`, 1, parseModel(settings.model), agent)
   } catch {
     stopSessionServer(sessionId)
     throw new Error("Could not start opencode session. Check that opencode is installed and in your PATH.")
@@ -1513,6 +1479,10 @@ export async function updateOpencodeConfig(params: Partial<OpencodeConfig>): Pro
   const data = opencodeConfigUpdateSchema.parse(params)
   const current = await getOpencodeConfig()
   const merged = { ...current, ...data }
+  // Remove default_agent if set to empty (means "let opencode decide")
+  if (merged.default_agent === "") {
+    delete merged.default_agent
+  }
   mkdirSync(OPENCONFIG_DIR, { recursive: true })
   writeFileSync(OPENCONFIG_PATH, JSON.stringify(merged, null, 2))
   return merged
@@ -1520,18 +1490,14 @@ export async function updateOpencodeConfig(params: Partial<OpencodeConfig>): Pro
 
 export async function listAgents(): Promise<AgentEntry[]> {
   const agents: AgentEntry[] = []
-  try {
-    const config = JSON.parse(readFileSync(OPENCONFIG_PATH, "utf-8"))
-    if (config.agents) agents.push(...config.agents)
-  } catch {}
-  // Built-in agents
-  agents.unshift(
-    { name: "auto", description: "Let opencode decide" },
-    { name: "code", description: "Write code" },
-    { name: "architect", description: "Plan and design" },
-    { name: "ask", description: "Answer questions" },
+
+  // Known opencode built-in agents (always available)
+  agents.push(
+    { name: "plan", description: "Plan and design" },
+    { name: "build", description: "Write code" },
   )
-  // Custom agents from directory
+
+  // Custom agents from filesystem directories
   const agentDirs = [
     `${OPENCONFIG_DIR}/agents`,
     getOpencodeDataAgentsDir(),

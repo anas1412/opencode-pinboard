@@ -65,20 +65,13 @@ export default function ChatView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header bar */}
-      <div className="flex items-center gap-2 px-4 border-b border-zinc-800 bg-zinc-950 h-9 shrink-0">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-        >
-          <ArrowLeft size={12} />
-          Back
-        </button>
-        <span className="text-xs text-zinc-500 font-mono shrink-0">
-          chat · {repoName ?? `port ${port}`}
-        </span>
-        <div className="flex-1" />
-        {phase === "active" && (
+      {/* Minimal session bar — Stop button and port info */}
+      {phase === "active" && (
+        <div className="flex items-center gap-2 px-4 border-b border-zinc-800 bg-zinc-950 h-9 shrink-0">
+          <span className="text-xs text-zinc-500 font-mono">
+            chat · {repoName ?? `port ${port}`}
+          </span>
+          <div className="flex-1" />
           <button
             onClick={handleStop}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
@@ -86,8 +79,8 @@ export default function ChatView() {
             <Square size={12} />
             Stop
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Iframe or overlay */}
       <div className="flex-1 min-h-0 relative">

@@ -210,7 +210,6 @@ export default function SplitView() {
     <div className="flex h-full">
       {/* ── LEFT: ticket detail panel ── */}
       <div className="w-[480px] min-w-[480px] border-r border-zinc-800 flex flex-col bg-zinc-950">
-        <HeaderBar onBack={handleBack} />
         <div className="flex-1 overflow-hidden">
           <TicketDetail ticketId={ticketId} onStartSession={handleStartSession} sessionActive={sessionActive} />
         </div>
@@ -283,17 +282,4 @@ export default function SplitView() {
   );
 }
 
-/** Shared back button bar for the left panel */
-function HeaderBar({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="flex items-center justify-between px-3 border-b border-zinc-800 h-9">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back
-      </button>
-    </div>
-  );
-}
+

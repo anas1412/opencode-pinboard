@@ -63,6 +63,9 @@ function ContentLayout() {
   const [chatRepoOpen, setChatRepoOpen] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
 
+  // Full-height routes (ticket detail, chat) get no padding — they fill the whole area
+  const isFullHeight = pathname.startsWith("/tickets/") || pathname.startsWith("/chat/");
+
   const handleNewChat = () => {
     if (!repos || repos.length === 0) return;
     const repoId = search.repoId || (repos.length === 1 ? repos[0].id : null);
@@ -118,7 +121,7 @@ function ContentLayout() {
               to="/tickets"
               search={{ repoId: search.repoId }}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 ${
-                isActive("/tickets")
+                pathname === "/tickets" || pathname.startsWith("/tickets/")
                   ? "tab-active"
                   : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
               }`}
@@ -197,7 +200,7 @@ function ContentLayout() {
         </div>
       )}
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className={`flex-1 overflow-auto ${isFullHeight ? "" : "p-6"}`}>
         <Outlet />
       </div>
     </>
@@ -251,13 +254,13 @@ const usageRoute = createRoute({
 });
 
 const ticketRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => contentLayout,
   path: "/tickets/$ticketId",
   component: SplitView,
 });
 
 const chatRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => contentLayout,
   path: "/chat/$chatId",
   component: ChatView,
 });
@@ -274,11 +277,9 @@ const indexHtmlFallback = createRoute({
 // ─── Route Tree & Router ────────────────────────────────────────────
 
 const routeTree = rootRoute.addChildren([
-  contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute]),
+  contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute, ticketRoute, chatRoute]),
   settingsRoute,
   usageRoute,
-  ticketRoute,
-  chatRoute,
   indexHtmlFallback,
 ]);
 

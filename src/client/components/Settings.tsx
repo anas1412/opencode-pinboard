@@ -203,7 +203,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (opencodeCfg) {
-      setDefaultAgent(opencodeCfg.default_agent || "build");
+      setDefaultAgent(opencodeCfg.default_agent || "");
     }
   }, [opencodeCfg]);
 
@@ -269,7 +269,7 @@ export default function Settings() {
   };
 
   const handleAgentSave = () => {
-    saveAgent.mutate({ default_agent: defaultAgent });
+    saveAgent.mutate({ default_agent: defaultAgent || "" });
   };
 
   const handleOcThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -403,6 +403,7 @@ export default function Settings() {
                 onChange={handleAgentChange}
                 className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
               >
+                <option value="">Default (opencode decides)</option>
                 {agents.map((a) => (
                   <option key={a.name} value={a.name}>
                     {a.name}{a.mode ? ` (${a.mode})` : ""}{a.description ? ` — ${a.description}` : ""}

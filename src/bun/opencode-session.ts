@@ -22,8 +22,9 @@ export function parseModel(modelStr: string): OpencodeModel | undefined {
  * @param port - opencode server port
  * @param repoPath - absolute path to the repo
  * @param title - session title
- * @param model - model to use (from OpenTack settings). If omitted, no model is sent.
  * @param retries - retry on failure (default 1 = no retry, delay 500ms between attempts)
+ * @param model - model to use (from OpenTack settings). If omitted, no model is sent.
+ * @param agent - agent to use (e.g. "plan", "build"). If omitted, no agent is sent.
  * @returns opencode session ID
  */
 export async function createOpencodeSession(
@@ -32,9 +33,11 @@ export async function createOpencodeSession(
   title: string,
   retries = 1,
   model?: OpencodeModel,
+  agent?: string,
 ): Promise<string> {
   const body: Record<string, unknown> = { title }
   if (model) body.model = model
+  if (agent) body.agent = agent
 
   const url = `http://127.0.0.1:${port}/session?directory=${encodeURIComponent(repoPath)}`
   for (let attempt = 0; attempt < retries; attempt++) {

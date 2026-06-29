@@ -41,6 +41,7 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
   const [tagsStr, setTagsStr] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generateNotesError, setGenerateNotesError] = useState("");
   const generateNotesMutation = useGenerateNotes();
 
   const repoName = useMemo(
@@ -100,7 +101,12 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
 
   async function handleGenerateNotes() {
     if (!ticket) return;
-    await generateNotesMutation.mutateAsync(ticket.id);
+    setGenerateNotesError("");
+    try {
+      await generateNotesMutation.mutateAsync(ticket.id);
+    } catch (err) {
+      setGenerateNotesError(err instanceof Error ? err.message : "Failed to generate notes");
+    }
   }
 
   if (isLoading) {
@@ -225,6 +231,9 @@ export default function TicketDetail({ ticketId, onStartSession, sessionActive }
             {generateNotesMutation.isPending ? "Generating..." : "Generate"}
           </button>
         </div>
+        {generateNotesError && (
+          <p className="text-xs text-red-400 mb-2">{generateNotesError}</p>
+        )}
         {ticket.notes ? (
           <div className="text-sm text-zinc-400 leading-relaxed [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_strong]:text-zinc-200 [&_a]:text-amber-400 [&_a]:underline [&_code]:bg-zinc-800 [&_code]:px-1 [&_code]:rounded">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
