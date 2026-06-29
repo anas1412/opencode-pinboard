@@ -39,10 +39,6 @@ Switch between **Overview** (dashboard with stats, cost charts, activity timelin
 
 - [Bun](https://bun.sh) (JavaScript runtime)
 - [opencode](https://github.com/anomalyco/opencode) (the AI coding agent)
-- **Linux only:** GStreamer base plugins (WebKit media backend)
-  - Debian/Ubuntu: `sudo apt-get install gstreamer1.0-plugins-base`
-  - Arch: `sudo pacman -S gst-plugins-base`
-  - Fedora: `sudo dnf install gstreamer1-plugins-base`
 
 ### Install (one-liner)
 
@@ -174,10 +170,12 @@ The installer binary handles: checking prerequisites, installing bun/opencode if
 
 ## Tech stack
 
+- **Desktop shell**: Electrobun (native desktop wrapper via OS webview, not Electron)
 - **Frontend**: React 19, Tailwind CSS 4, Vite 6, Zustand 5, TanStack Query 5, TanStack Router 1, Lucide React, react-markdown + remark-gfm
 - **Backend**: Fastify 5 (Bun runtime), Zod, chokidar
 - **Database**: SQLite via Drizzle ORM
-- **AI**: Powered by opencode
+- **AI SDK**: @opencode-ai/sdk
+- **IPC**: Electrobun RPC (frontend ↔ backend communication)
 
 ## License
 
