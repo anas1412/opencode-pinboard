@@ -32,41 +32,9 @@ jobs:
           name: opentack-install-${{ matrix.os }}
           path: dist/opentack-install*
 
-  build-desktop:
-    name: Build desktop app (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install system deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build desktop app
-        run: bun run build
-
-      - name: Upload desktop app artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: opentack-desktop-${{ matrix.os }}
-          path: build/
-
   release:
     name: Create release
-    needs: [build-installer, build-desktop]
+    needs: [build-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -83,14 +51,8 @@ jobs:
           mv opentack-install      opentack-install-linux   || true
           mv opentack-install.exe  opentack-install-windows.exe || true
 
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: opentack-desktop-*
-          path: desktop-builds
-
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             opentack-install-*
-            desktop-builds/**
           generate_release_notes: true
