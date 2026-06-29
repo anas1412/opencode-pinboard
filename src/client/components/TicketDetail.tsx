@@ -53,21 +53,36 @@ const STATUS_ACTIONS: Record<string, StatusAction[]> = {
 
 function StatusActions({ status, ticketId }: { status: TicketStatus; ticketId: string }) {
   const updateTicket = useUpdateTicket();
+  const [error, setError] = useState<string | null>(null);
   const actions = STATUS_ACTIONS[status];
   if (!actions || actions.length === 0) return null;
 
+  async function handleClick(nextStatus: TicketStatus) {
+    setError(null);
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, input: { status: nextStatus } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update ticket");
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      {actions.map((action) => (
-        <button
-          key={action.nextStatus}
-          onClick={() => updateTicket.mutate({ id: ticketId, input: { status: action.nextStatus } })}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${action.color}`}
-        >
-          {action.icon}
-          {action.label}
-        </button>
-      ))}
+    <div className="flex flex-col items-center gap-2">
+      <div className="flex items-center gap-2">
+        {actions.map((action) => (
+          <button
+            key={action.nextStatus}
+            disabled={updateTicket.isPending}
+            onClick={() => handleClick(action.nextStatus)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors
+              ${updateTicket.isPending ? "opacity-50 cursor-not-allowed" : action.color}`}
+          >
+            {updateTicket.isPending ? <RotateCcw size={13} className="animate-spin" /> : action.icon}
+            {action.label}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }

@@ -54,8 +54,6 @@ Or use the compiled installer binary (from a [release](https://github.com/anas14
 ```bash
 # Linux
 ./opentack-install-linux
-# macOS
-./opentack-install-macos
 # Windows
 opentack-install-windows.exe
 ```
@@ -65,7 +63,6 @@ opentack-install-windows.exe
 | Platform | How to launch |
 |---|---|
 | **Linux** | Find **OpenTack** in your app menu (installed to `~/.local/share/applications/opentack.desktop`) |
-| **macOS** | Open `OpenTack-dev.app` from `build/dev-darwin-{arch}/` |
 | **Windows** | Run `OpenTack-dev.exe` from `build/dev-win32-x64/OpenTack-dev/` |
 
 Or from the project directory:
@@ -170,7 +167,6 @@ bun run build:installer
 
 # The output binary auto-suffixed per platform:
 #   Linux:   dist/opentack-install
-#   macOS:   dist/opentack-install
 #   Windows: dist/opentack-install.exe
 ```
 

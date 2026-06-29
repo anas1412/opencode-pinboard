@@ -457,22 +457,90 @@ export async function updateTicket(params: { id: string } & TicketUpdateInput): 
     }
   }
 
-  // Submit for Review: push branch to origin
+  // Submit for Review: squash branch, generate commit message via opencode run, push
   if (existing[0].status === "in_progress" && data.status === "needs_review") {
     try {
       const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, existing[0].repoId)).limit(1)
-      if (repo) {
-        Bun.spawnSync(["git", "push", "origin", existing[0].branch as string], { cwd: repo.localPath })
+      if (repo && existing[0].branch) {
+        const base = existing[0].baseBranch || "main"
+        const repoPath = repo.localPath
+
+        // Get diff of all branch changes for commit message generation
+        const diffProc = Bun.spawnSync(["git", "diff", `origin/${base}...`, "--diff-filter=ACDMR"], { cwd: repoPath })
+        const diff = diffProc.stdout.toString().trim()
+
+        if (diff) {
+          // Generate commit message from diff
+          writeFileSync("/tmp/opencode/commit-diff.txt", diff)
+          const settings = await getSettings()
+          const opencodeCfg = await getOpencodeConfig()
+          const modelFlag = settings.model ? ["--model", settings.model] : []
+          const cfgAgent = opencodeCfg.default_agent || ""
+          const agentFlag = cfgAgent && cfgAgent !== "auto" && cfgAgent !== "ask" ? ["--agent", cfgAgent] : []
+          const genProc = Bun.spawn(["opencode", "run", ...modelFlag, ...agentFlag,
+            "Read /tmp/opencode/commit-diff.txt. Write a concise git commit message. First line: summary. Blank line. Bullet list of key changes. Output ONLY the commit message, no preamble."
+          ], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env } })
+          const [genStdout] = await Promise.all([new Response(genProc.stdout).text()])
+          await genProc.exited
+          const commitMsg = genStdout.trim() || "Changes for review"
+
+          // Squash: soft reset to base, commit with generated message, force push
+          const reset = Bun.spawnSync(["git", "reset", "--soft", `origin/${base}`], { cwd: repoPath })
+          if (reset.exitCode === 0) {
+            Bun.spawnSync(["git", "commit", "-m", commitMsg], { cwd: repoPath })
+            Bun.spawnSync(["git", "push", "-f", "origin", existing[0].branch], { cwd: repoPath })
+          } else {
+            // Fallback: no remote tracking ref — just push
+            Bun.spawnSync(["git", "push", "origin", existing[0].branch], { cwd: repoPath })
+          }
+        } else {
+          // No diff — just push
+          Bun.spawnSync(["git", "push", "origin", existing[0].branch], { cwd: repoPath })
+        }
       }
     } catch {}
   }
 
-  // Merge & Resolve: fast-forward merge via remote push
+  // Merge & Resolve: squash branch, generate commit message, merge into base
   if (existing[0].status === "needs_review" && data.status === "resolved") {
     try {
       const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, existing[0].repoId)).limit(1)
-      if (repo) {
-        Bun.spawnSync(["git", "push", "origin", `${existing[0].branch}:${existing[0].baseBranch || "main"}`], { cwd: repo.localPath })
+      if (repo && existing[0].branch) {
+        const base = existing[0].baseBranch || "main"
+        const repoPath = repo.localPath
+
+        // Get diff of all branch changes for commit message generation
+        const diffProc = Bun.spawnSync(["git", "diff", `origin/${base}...`, "--diff-filter=ACDMR"], { cwd: repoPath })
+        const diff = diffProc.stdout.toString().trim()
+
+        if (diff) {
+          writeFileSync("/tmp/opencode/commit-diff.txt", diff)
+          const settings = await getSettings()
+          const opencodeCfg = await getOpencodeConfig()
+          const modelFlag = settings.model ? ["--model", settings.model] : []
+          const cfgAgent = opencodeCfg.default_agent || ""
+          const agentFlag = cfgAgent && cfgAgent !== "auto" && cfgAgent !== "ask" ? ["--agent", cfgAgent] : []
+          const genProc = Bun.spawn(["opencode", "run", ...modelFlag, ...agentFlag,
+            "Read /tmp/opencode/commit-diff.txt. Write a concise git commit message. First line: summary. Blank line. Bullet list of key changes. Output ONLY the commit message, no preamble."
+          ], { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env } })
+          const [genStdout] = await Promise.all([new Response(genProc.stdout).text()])
+          await genProc.exited
+          const commitMsg = genStdout.trim() || "Changes for review"
+
+          // Squash branch into one commit, then push to base branch
+          const reset = Bun.spawnSync(["git", "reset", "--soft", `origin/${base}`], { cwd: repoPath })
+          if (reset.exitCode === 0) {
+            Bun.spawnSync(["git", "commit", "-m", commitMsg], { cwd: repoPath })
+            // Merge: push squashed commit onto base branch
+            Bun.spawnSync(["git", "push", "origin", `${existing[0].branch}:${base}`], { cwd: repoPath })
+          } else {
+            // Fallback: direct remote ff-merge
+            Bun.spawnSync(["git", "push", "origin", `${existing[0].branch}:${base}`], { cwd: repoPath })
+          }
+        } else {
+          // No diff — just push
+          Bun.spawnSync(["git", "push", "origin", `${existing[0].branch}:${base}`], { cwd: repoPath })
+        }
       }
     } catch {}
   }

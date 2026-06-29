@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +85,6 @@ jobs:
         run: |
           mv opentack-install      opentack-install-linux   || true
           mv opentack-install.exe  opentack-install-windows.exe || true
-          mv opentack-install-*    opentack-install-macos   || true
 
       - uses: actions/download-artifact@v4
         with:
