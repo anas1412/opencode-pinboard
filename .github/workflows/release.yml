@@ -51,6 +51,20 @@ jobs:
           mv opentack-install      opentack-install-linux   || true
           mv opentack-install.exe  opentack-install-windows.exe || true
 
+      - name: Clean stale release assets (from failed prior runs)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" --json assets &>/dev/null; then
+            echo "Cleaning stale release assets..."
+            gh release view "$TAG" --json assets -q '.assets[].apiUrl | split("/") | last' | while read -r id; do
+              echo "  deleting asset $id..."
+              gh api -X DELETE "/repos/${{ github.repository }}/releases/assets/$id" --silent || true
+            done
+          fi
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
