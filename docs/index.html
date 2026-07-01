@@ -202,9 +202,10 @@ button{ font-family:inherit; cursor:pointer; }
   display:flex; align-items:center; justify-content:space-between;
   padding-block:18px;
 }
-.brand{ display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:700; font-size:1.18rem; }
+.brand{ display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-size:1.18rem; }
 .brand-mark{ font-size:1.2rem; }
-.brand b{ color:var(--flare); font-weight:700; }
+.brand-name{ font-weight:700; }
+.brand-accent{ color:var(--flare); font-weight:700; }
 .nav-links{ display:flex; align-items:center; gap:30px; font-size:.92rem; color:var(--smoke); }
 .nav-links a{ transition:color .2s; }
 .nav-links a:hover{ color:var(--paper); }
@@ -507,7 +508,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
      ============================================================ -->
 <header class="nav" id="nav">
   <div class="container nav-inner">
-    <a href="#top" class="brand"><span class="brand-mark">📌</span>Pin<b>board</b></a>
+    <a href="#top" class="brand"><span class="brand-mark">📌</span><span class="brand-name">Pin<span class="brand-accent">board</span></span></a>
     <nav class="nav-links">
       <a href="#how">How it works</a>
       <a href="#views">Views</a>
