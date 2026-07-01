@@ -108,8 +108,9 @@ const REST_MAP: Record<string, RestRoute> = {
   downloadUpdate: { method: "POST", path: "/api/version/download-update" },
   ghTest: { method: "POST", path: "/api/gh/test" },
   ghInstall: { method: "POST", path: "/api/gh/install" },
-  ghAuthStart: { method: "POST", path: "/api/gh/auth/start" },
-  ghAuthPoll: { method: "POST", path: (p) => `/api/gh/auth/poll` },
+  ghAuthLogin: { method: "POST", path: "/api/gh/auth/login" },
+  ghAuthLoginPoll: { method: "POST", path: (p) => `/api/gh/auth/login-poll/${p.processId}` },
+  openUrl: { method: "POST", path: "/api/system/open-url" },
   submitForReview: { method: "POST", path: (p) => `/api/tickets/${p.ticketId}/submit-for-review` },
 }
 

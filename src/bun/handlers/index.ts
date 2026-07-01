@@ -1160,83 +1160,193 @@ export async function ghInstall(): Promise<{ success: boolean; path?: string; er
   }
 }
 
-// ─── GitHub Auth via gh CLI subprocess ────────────────────────────────
+// ─── GitHub OAuth Device Flow ──────────────────────────────────────────
 //
-// The custom OAuth device-flow polling (hitting GitHub's API directly from
-// Bun fetch) doesn't reliably detect authorization. Instead, we delegate
-// the entire OAuth flow to `gh auth login --web` — gh's own
-// battle-tested implementation.  We spawn it, read the one-time code + URL
-// from stdout, send Enter to start polling, then monitor the process exit.
+// 1. Start device flow via GitHub API fetch → get device_code + user_code + URL
+// 2. Show user_code + URL to user (they open URL in browser, enter code)
+// 3. Poll GitHub's token endpoint via curl subprocess (Bun.fetch has
+//    reliability issues with this specific endpoint — curl works consistently)
+// 4. On success: inject token into gh via `gh auth login --with-token`
+// 5. Verify connection and return user info
 
-const loginProcesses = new Map<string, { proc: import("bun").Subprocess; userCode: string; verificationUri: string }>()
+const GH_CLIENT_ID = "178c6fc778ccc68e1d6a"
+
+interface OAuthSession {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  createdAt: number
+}
+
+const oauthSessions = new Map<string, OAuthSession>()
+
+// Clean up stale sessions every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 15 * 60 * 1000
+  for (const [id, session] of oauthSessions) {
+    if (session.createdAt < cutoff) oauthSessions.delete(id)
+  }
+}, 5 * 60 * 1000)
 
 export async function ghAuthLogin(): Promise<{ processId: string; userCode: string; verificationUri: string }> {
-  const { findGh } = await import("../../shared/gh-runner")
-  const ghPath = await findGh("gh")
-  if (!ghPath) throw new Error("gh CLI not found")
-
-  const proc = Bun.spawn([ghPath, "auth", "login", "--web"], {
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
+  // Start device flow via GitHub API
+  const res = await fetch("https://github.com/login/device/code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_id: GH_CLIENT_ID,
+      scope: "repo,read:org,workflow",
+    }),
   })
 
-  // Read stdout line by line until we get the code and URL
-  const reader = proc.stdout.getReader()
-  const decoder = new TextDecoder()
-  let buf = ""
-  let userCode = ""
-  let verificationUri = ""
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`GitHub device code request failed: ${res.status} ${text}`)
+  }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += decoder.decode(value, { stream: true })
+  const data = await res.json()
+  const processId = crypto.randomUUID()
 
-    const codeMatch = buf.match(/one-time code:\s*(\S+)/)
-    const urlMatch = buf.match(/(https?:\/\/\S+)/)
-    if (codeMatch) userCode = codeMatch[1]
-    if (urlMatch && !verificationUri) verificationUri = urlMatch[1]
+  oauthSessions.set(processId, {
+    deviceCode: data.device_code,
+    userCode: data.user_code,
+    verificationUri: data.verification_uri,
+    createdAt: Date.now(),
+  })
 
-    if (userCode && verificationUri) {
-      // Send Enter to kick off gh's own polling
-      proc.stdin.write("\n")
-      proc.stdin.flush()
+  console.log("[ghAuthLogin] device flow started, code:", data.user_code)
+  return { processId, userCode: data.user_code, verificationUri: data.verification_uri }
+}
 
-      const processId = crypto.randomUUID()
-      loginProcesses.set(processId, { proc, userCode, verificationUri })
+export async function ghAuthLoginPoll(
+  params: { processId: string },
+): Promise<{
+  status: "pending" | "success" | "error" | "expired"
+  error?: string
+  user?: { login: string; name: string | null; email: string | null; avatarUrl: string | null; plan: string | null }
+}> {
+  const session = oauthSessions.get(params.processId)
+  if (!session) return { status: "expired", error: "Session expired or not found" }
 
-      // Don't await process exit — gh polls in background
-      proc.ref()
+  // Check 15-minute expiry
+  if (Date.now() - session.createdAt > 15 * 60 * 1000) {
+    oauthSessions.delete(params.processId)
+    return { status: "expired", error: "Session expired. Please try again." }
+  }
 
-      console.log("[ghAuthLogin] started, code:", userCode, "uri:", verificationUri)
-      return { processId, userCode, verificationUri }
+  // Poll GitHub token endpoint via curl (more reliable than Bun.fetch for this endpoint)
+  const devNull = process.platform === "win32" ? "NUL" : "/dev/null"
+  const pollResult = Bun.spawnSync([
+    "curl",
+    "-s",
+    "-X", "POST",
+    "https://github.com/login/oauth/access_token",
+    "-H", "Content-Type: application/json",
+    "-H", "Accept: application/json",
+    "-d", JSON.stringify({
+      client_id: GH_CLIENT_ID,
+      device_code: session.deviceCode,
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+    }),
+    // Suppress progress output that curl outputs to stderr on some terminals
+    "-o", "-",
+    "--stderr", devNull,
+  ])
+
+  if (pollResult.exitCode !== 0) {
+    const stderr = pollResult.stderr.toString().trim()
+    console.error("[ghAuthLogin] curl failed:", stderr)
+    // Fallback: try Bun.fetch once
+    try {
+      const fallbackRes = await fetch("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          client_id: GH_CLIENT_ID,
+          device_code: session.deviceCode,
+          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+        }),
+      })
+      const fallbackData = await fallbackRes.json()
+      if (fallbackData.access_token) {
+        return await handleTokenSuccess(params.processId, fallbackData.access_token)
+      }
+      if (fallbackData.error === "authorization_pending" || fallbackData.error === "slow_down") {
+        return { status: "pending" }
+      }
+      if (fallbackData.error === "expired_token" || fallbackData.error === "access_denied") {
+        oauthSessions.delete(params.processId)
+        return { status: "expired", error: fallbackData.error_description || fallbackData.error }
+      }
+      return { status: "pending" }
+    } catch {
+      return { status: "error", error: `curl failed: ${stderr}` }
     }
   }
 
-  // If we get here, gh exited before printing the code
-  const stderr = await new Response(proc.stderr).text()
-  throw new Error(stderr || "gh auth login exited without printing a code")
-}
-
-export async function ghAuthLoginPoll(params: { processId: string }): Promise<{ status: "pending" | "success" | "error"; error?: string }> {
-  const entry = loginProcesses.get(params.processId)
-  if (!entry) return { status: "error", error: "Login session expired or not found" }
-
-  const exited = entry.proc.exitCode !== null
-  if (!exited) return { status: "pending" }
-
-  // Process finished — clean up
-  loginProcesses.delete(params.processId)
-
-  if (entry.proc.exitCode === 0) {
-    console.log("[ghAuthLogin] success")
-    return { status: "success" }
+  // Parse response
+  let data: any
+  try {
+    data = JSON.parse(pollResult.stdout.toString())
+  } catch {
+    return { status: "error", error: "Failed to parse GitHub response" }
   }
 
-  const stderr = await new Response(entry.proc.stderr).text()
-  console.log("[ghAuthLogin] failed:", stderr)
-  return { status: "error", error: stderr || `gh auth login exited with code ${entry.proc.exitCode}` }
+  // Token received!
+  if (data.access_token) {
+    return await handleTokenSuccess(params.processId, data.access_token)
+  }
+
+  // Still pending
+  if (data.error === "authorization_pending" || data.error === "slow_down") {
+    return { status: "pending" }
+  }
+
+  // Session expired / denied
+  if (data.error === "expired_token" || data.error === "access_denied") {
+    oauthSessions.delete(params.processId)
+    return { status: "expired", error: data.error_description || data.error }
+  }
+
+  // Unexpected error
+  return { status: "error", error: data.error_description || data.error || "Unknown error" }
+}
+
+async function handleTokenSuccess(
+  processId: string,
+  token: string,
+): Promise<{
+  status: "success"
+  user: { login: string; name: string | null; email: string | null; avatarUrl: string | null; plan: string | null }
+}> {
+  // Inject token into gh CLI (async spawn so we can pipe stdin)
+  const injectProc = Bun.spawn(["gh", "auth", "login", "--with-token"], {
+    stdin: "pipe",
+    stderr: "pipe",
+  })
+  injectProc.stdin.write(token + "\n")
+  injectProc.stdin.end()
+  const exitCode = await injectProc.exited
+  const stderr = await new Response(injectProc.stderr).text()
+
+  if (exitCode !== 0) {
+    console.error("[ghAuthLogin] token injection failed:", stderr)
+    throw new Error(`Failed to inject token: ${stderr}`)
+  }
+
+  // Clean up session
+  oauthSessions.delete(processId)
+
+  // Verify connection and get user info
+  const { testGhConnection } = await import("../../shared/gh-runner")
+  const result = await testGhConnection()
+
+  if (!result.ok || !result.user) {
+    throw new Error("Token injected but verification failed")
+  }
+
+  console.log("[ghAuthLogin] OAuth success:", result.user.login)
+  return { status: "success", user: result.user }
 }
 
 // ─── Sync Worktree ────────────────────────────────────────────────────────

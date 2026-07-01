@@ -19,6 +19,7 @@ import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import TicketsView from "./components/TicketsView";
 import Settings from "./components/Settings";
+import GhSettingsPage from "./components/GhSettingsPage";
 import UsagePage from "./components/UsagePage";
 import SplitView from "./components/SplitView";
 import TicketCreate from "./components/TicketCreate";
@@ -246,6 +247,12 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
+const settingsGithubRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/github",
+  component: GhSettingsPage,
+});
+
 const usageRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/usage",
@@ -280,6 +287,7 @@ const indexHtmlFallback = createRoute({
 const routeTree = rootRoute.addChildren([
   contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute, ticketRoute, chatRoute]),
   settingsRoute,
+  settingsGithubRoute,
   usageRoute,
   indexHtmlFallback,
 ]);

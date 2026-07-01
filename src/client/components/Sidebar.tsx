@@ -8,6 +8,7 @@ import { fetchChats, createChat, type ChatSession } from "../api/chats";
 import { checkUpdates, downloadUpdate } from "../api/version";
 import type { CheckUpdatesResponse } from "../../shared/types";
 import AddRepoModal from "./AddRepoModal";
+import GhSidebarProfile from "./GhSidebarProfile";
 import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw } from "lucide-react";
 
 function useUrlRepoId(): string | undefined {
@@ -245,6 +246,8 @@ export default function Sidebar() {
         <Settings2 size={13} />
         Settings
       </button>
+
+      <GhSidebarProfile />
 
       {/* Version + update status */}
       <button

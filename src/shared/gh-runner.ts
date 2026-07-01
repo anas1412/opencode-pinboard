@@ -243,9 +243,14 @@ export async function runGh(options: GhRunOptions): Promise<GhRunResult> {
 /**
  * Test gh connection and return user info.
  *
- * Checks both:
+ * Checks:
  * 1. System credentials (gh auth login)
- * 2. Stored token (Settings → GitHub)
+ * 2. Stored token via GH_TOKEN env var (Settings → GitHub / OAuth)
+ *
+ * gh auth status only checks the gh CLI config file (~/.config/gh/hosts.yml).
+ * After OAuth the token is stored in the DB and injected via GH_TOKEN — but
+ * gh auth status doesn't honor GH_TOKEN. So if auth status fails but a token
+ * exists, we fall through to gh api user which DOES use GH_TOKEN.
  */
 export async function testGhConnection(): Promise<GhTestResult> {
   // First check if gh binary exists
@@ -260,18 +265,26 @@ export async function testGhConnection(): Promise<GhTestResult> {
     return { ok: false, error: `gh CLI not found at "${ghPath}"` };
   }
 
-  // Try auth status — works with system credentials OR stored token
-  const result = await runGh({ args: ["auth", "status"] });
-  if (result.exitCode !== 0) {
-    const stderr = result.stderr || "Authentication failed";
-    // If no token in settings, give a clearer message
-    if (!row?.ghToken) {
-      return { ok: false, error: `Not authenticated. Run \`gh auth login\` or add a Personal Access Token in Settings → GitHub.` };
-    }
-    return { ok: false, error: stderr };
-  }
+  // Try auth status — only works with system credentials (gh auth login)
+  const authResult = await runGh({ args: ["auth", "status"] });
 
-  // Parse user info from `gh api user`
+  // Extract login from auth status if it succeeded
+  let userLogin: string | null = null;
+  if (authResult.exitCode === 0) {
+    const loginMatch = authResult.stdout.match(/Logged in to github\.com as (\S+)/);
+    userLogin = loginMatch?.[1] ?? null;
+  } else if (!row?.ghToken) {
+    // No system credentials AND no stored token = not authenticated
+    const stderr = authResult.stderr || "Authentication failed";
+    return {
+      ok: false,
+      error: `Not authenticated. Run \`gh auth login\` or add a Personal Access Token in Settings → GitHub.`,
+    };
+  }
+  // If auth status failed but we have a stored token, keep going —
+  // gh api user with GH_TOKEN will work even if gh auth status doesn't
+
+  // Parse user info from `gh api user` (works with GH_TOKEN env var)
   const userResult = await runGh({ args: ["api", "user", "--jq", "{login, name, email, avatar_url, plan: .plan.name}"] });
   let userInfo: GhUserInfo | undefined;
 
@@ -287,11 +300,15 @@ export async function testGhConnection(): Promise<GhTestResult> {
       };
     } catch {
       // Fallback: just use login from auth status
-      const loginMatch = result.stdout.match(/Logged in to github\.com as (\S+)/);
-      if (loginMatch) {
-        userInfo = { login: loginMatch[1], name: null, email: null, avatarUrl: null, plan: null };
+      if (userLogin) {
+        userInfo = { login: userLogin, name: null, email: null, avatarUrl: null, plan: null };
       }
     }
+  }
+
+  if (!userInfo) {
+    const stderr = userResult.stderr || "Failed to get user info";
+    return { ok: false, error: `GitHub token is stored but the API call failed: ${stderr}` };
   }
 
   return { ok: true, user: userInfo };
@@ -351,6 +368,9 @@ export interface DeviceAuthPollResult {
  * Call this every `interval` seconds after `startDeviceAuth`.
  */
 export async function pollDeviceAuth(deviceCode: string): Promise<DeviceAuthPollResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
   const res = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -359,7 +379,8 @@ export async function pollDeviceAuth(deviceCode: string): Promise<DeviceAuthPoll
       device_code: deviceCode,
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     }),
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
 
   if (!res.ok) {
     return { status: "error", error: `HTTP ${res.status}` };

@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchSettings, updateSettings } from "../api/settings";
 import { request } from "../api/rpc-client";
-import { GitBranch, Loader2, CheckCircle, XCircle, AlertTriangle, Download, Terminal, LogIn, ExternalLink } from "lucide-react";
+import { useAppStore, type GhUser } from "../store/app";
+import { GitBranch, Loader2, CheckCircle, XCircle, AlertTriangle, Download, Github, ExternalLink, Copy, LogIn, Terminal } from "lucide-react";
 
 // ─── Gh status types ───────────────────────────────────────────────────
 
@@ -44,121 +45,11 @@ function getPlatformInstallHint(): string {
   return "Install from https://cli.github.com";
 }
 
-// ─── OAuth Device Code Panel ────────────────────────────────────────────
-
-function OAuthPanel({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const [code, setCode] = useState<string | null>(null);
-  const [verificationUri, setVerificationUri] = useState("");
-  const [deviceCode, setDeviceCode] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Start device auth on mount
-  useEffect(() => {
-    request("ghAuthStart").then((res) => {
-      setCode(res.userCode);
-      setVerificationUri(res.verificationUri);
-      setDeviceCode(res.deviceCode);
-      setPolling(true);
-
-      // Open browser to verification URL
-      window.open(res.verificationUri, "_blank", "noopener,noreferrer");
-    }).catch((err) => {
-      setError(err instanceof Error ? err.message : "Failed to start authentication");
-    });
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  // Poll once deviceCode is set
-  useEffect(() => {
-    if (!deviceCode || !polling) return;
-
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await request("ghAuthPoll", { deviceCode: deviceCode! });
-        if (res.status === "success") {
-          if (pollRef.current) clearInterval(pollRef.current);
-          onComplete();
-        } else if (res.status === "expired" || res.status === "error") {
-          if (pollRef.current) clearInterval(pollRef.current);
-          setError(res.error || "Authentication expired or denied");
-          setPolling(false);
-        }
-        // "pending" — keep polling
-      } catch {
-        // keep polling
-      }
-    }, 5000);
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [deviceCode, polling, onComplete]);
-
-  return (
-    <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-5 mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
-        <p className="text-sm font-medium text-white">Sign in to GitHub</p>
-      </div>
-
-      {code && (
-        <>
-          <p className="text-xs text-zinc-400 mb-3">
-            Enter the following code on the GitHub page that opened in your browser:
-          </p>
-
-          <div className="bg-zinc-950 border border-zinc-700 rounded-lg px-6 py-4 mb-3 text-center">
-            <span className="text-2xl font-bold text-white tracking-widest select-all font-mono">
-              {code}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 mb-4">
-            <a
-              href={verificationUri}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
-            >
-              <ExternalLink size={12} />
-              {verificationUri}
-            </a>
-            <span className="text-xs text-zinc-600">(click if page didn't open)</span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <Loader2 size={10} className="animate-spin" />
-            Waiting for you to authorize...
-          </div>
-        </>
-      )}
-
-      {error && (
-        <div className="flex items-start gap-2 mt-2">
-          <XCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-red-300">{error}</p>
-        </div>
-      )}
-
-      <button
-        onClick={onCancel}
-        className="mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-      >
-        Cancel
-      </button>
-    </div>
-  );
-}
-
 // ─── GhSettings component ───────────────────────────────────────────────
 
 export default function GhSettings() {
   const qc = useQueryClient();
+  const { ghUser: cachedUser, ghPhase: cachedPhase, setGhAuth } = useAppStore();
 
   // ── Settings from server ────────────────────────────────────────────
   const { data: settings } = useQuery({
@@ -180,31 +71,32 @@ export default function GhSettings() {
     }
   }, [settings]);
 
-  // ── gh connection state ─────────────────────────────────────────────
+  // ── gh connection state ──────────────────────────────────────────────
   const [ghState, setGhState] = useState<GhState>({ phase: "checking" });
-  const [showingOAuth, setShowingOAuth] = useState(false);
+  const [testing, setTesting] = useState(false);
 
-  const { data: ghTestResult, isLoading: ghTesting, refetch: testGh } = useQuery({
-    queryKey: ["gh-test"],
-    queryFn: () => request("ghTest"),
-    enabled: false,
-    retry: false,
-  });
-
-  // Initial check on mount
+  // Check auth on mount (also react to store updates from sidebar)
   useEffect(() => {
+    if (cachedPhase === "authed" && cachedUser) {
+      setGhState({ phase: "authed", user: cachedUser });
+      return;
+    }
+    // No cached result yet — run our own check
     request("ghTest").then((res) => {
       if (res.ok && res.user) {
         setGhState({ phase: "authed", user: res.user });
-      } else if (res.error && res.error.includes("not found")) {
+        setGhAuth("authed", res.user as GhUser);
+      } else if (res.error?.includes("not found")) {
         setGhState({ phase: "missing" });
+        setGhAuth("missing");
       } else {
         setGhState({ phase: "no-token" });
+        setGhAuth("no-token");
       }
     }).catch(() => {
-      setGhState({ phase: "checking" });
+      setGhState({ phase: "error", message: "Failed to check GitHub connection" });
     });
-  }, []);
+  }, []); // run once on mount
 
   // ── Mutations ───────────────────────────────────────────────────────
   const saveGhSettings = useMutation({
@@ -225,8 +117,10 @@ export default function GhSettings() {
         request("ghTest").then((res) => {
           if (res.ok && res.user) {
             setGhState({ phase: "authed", user: res.user });
+            setGhAuth("authed", res.user as GhUser);
           } else {
             setGhState({ phase: "no-token" });
+            setGhAuth("no-token");
           }
         });
       }
@@ -236,23 +130,35 @@ export default function GhSettings() {
   // ── Handlers ────────────────────────────────────────────────────────
   const handleTest = async () => {
     if (formDirty) {
-      await saveGhSettings.mutateAsync({ ghPath, defaultRemote });
+      try { await saveGhSettings.mutateAsync({ ghPath, defaultRemote }); } catch { /* continue anyway */ }
     }
-    const res = await testGh();
-    if (res.data?.ok && res.data?.user) {
-      setGhState({ phase: "authed", user: res.data.user });
-    } else if (res.data?.error?.includes("not found")) {
-      setGhState({ phase: "missing" });
-    } else if (res.data?.error) {
-      setGhState({ phase: "error", message: res.data.error });
-    } else {
-      setGhState({ phase: "no-token" });
+    setTesting(true);
+    setGhState({ phase: "checking" });
+    try {
+      const res = await request("ghTest");
+      if (res.ok && res.user) {
+        setGhState({ phase: "authed", user: res.user });
+        setGhAuth("authed", res.user as GhUser);
+      } else if (res.error?.includes("not found")) {
+        setGhState({ phase: "missing" });
+        setGhAuth("missing");
+      } else if (res.error) {
+        setGhState({ phase: "error", message: res.error });
+      } else {
+        setGhState({ phase: "no-token" });
+        setGhAuth("no-token");
+      }
+    } catch (err) {
+      setGhState({ phase: "error", message: err instanceof Error ? err.message : "Connection test failed" });
+    } finally {
+      setTesting(false);
     }
   };
 
   const handleDisconnect = () => {
     saveGhSettings.mutate({ ghToken: "" });
     setGhState({ phase: "no-token" });
+    setGhAuth("no-token");
   };
 
   const handleSave = () => {
@@ -266,16 +172,87 @@ export default function GhSettings() {
     installGh.mutate();
   };
 
-  const handleOAuthComplete = async () => {
-    setShowingOAuth(false);
-    setGhState({ phase: "checking" });
-    // Refresh to show profile
-    qc.invalidateQueries({ queryKey: ["settings"] });
-    const res = await request("ghTest");
-    if (res.ok && res.user) {
-      setGhState({ phase: "authed", user: res.user });
-    } else {
-      setGhState({ phase: "no-token" });
+  // ── OAuth flow state ────────────────────────────────────────────────
+  type OAuthPhase = "idle" | "starting" | "waiting" | "error" | "expired";
+  const [oauthPhase, setOauthPhase] = useState<OAuthPhase>("idle");
+  const [oauthUserCode, setOauthUserCode] = useState("");
+  const [oauthVerificationUri, setOauthVerificationUri] = useState("");
+  const [oauthProcessId, setOauthProcessId] = useState("");
+  const [oauthError, setOauthError] = useState("");
+  const oauthPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopOAuthPolling = useCallback(() => {
+    if (oauthPollRef.current) {
+      clearInterval(oauthPollRef.current);
+      oauthPollRef.current = null;
+    }
+  }, []);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => stopOAuthPolling();
+  }, [stopOAuthPolling]);
+
+  const handleSignInWithGithub = async () => {
+    setOauthPhase("starting");
+    setOauthError("");
+
+    try {
+      const { processId, userCode, verificationUri } = await request("ghAuthLogin");
+      setOauthProcessId(processId);
+      setOauthUserCode(userCode);
+      setOauthVerificationUri(verificationUri);
+      setOauthPhase("waiting");
+
+      // Open GitHub device activation page
+      request("openUrl", { url: `${verificationUri}?code=${userCode}` });
+
+      // Start polling
+      stopOAuthPolling();
+      oauthPollRef.current = setInterval(async () => {
+        try {
+          const poll = await request("ghAuthLoginPoll", { processId });
+
+          if (poll.status === "success" && poll.user) {
+            stopOAuthPolling();
+            setOauthPhase("idle");
+            setGhState({ phase: "authed", user: poll.user });
+            setGhAuth("authed", poll.user as GhUser);
+          } else if (poll.status === "expired") {
+            stopOAuthPolling();
+            setOauthPhase("expired");
+            setOauthError(poll.error || "Session expired");
+          } else if (poll.status === "error") {
+            stopOAuthPolling();
+            setOauthPhase("error");
+            setOauthError(poll.error || "Authorization failed");
+          }
+          // "pending" — keep polling
+        } catch (err) {
+          stopOAuthPolling();
+          setOauthPhase("error");
+          setOauthError(err instanceof Error ? err.message : "Polling failed");
+        }
+      }, 5000);
+    } catch (err) {
+      setOauthPhase("error");
+      setOauthError(err instanceof Error ? err.message : "Failed to start authorization");
+    }
+  };
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(oauthUserCode);
+    } catch {
+      // Fallback — select the code text
+      const el = document.getElementById("oauth-user-code");
+      if (el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
     }
   };
 
@@ -379,19 +356,128 @@ export default function GhSettings() {
         </div>
       )}
 
-      {/* OAuth device flow panel */}
-      {showingOAuth && (
-        <OAuthPanel
-          onComplete={handleOAuthComplete}
-          onCancel={() => setShowingOAuth(false)}
-        />
+      {/* Not connected — OAuth sign in flow */}
+      {ghState.phase === "no-token" && oauthPhase === "idle" && (
+        <div className="border border-zinc-800 rounded-lg p-4 mb-4 text-center">
+          <Github size={32} className="mx-auto mb-3 text-zinc-400" />
+          <p className="text-sm text-zinc-300 mb-1 font-medium">
+            Connect your GitHub account
+          </p>
+          <p className="text-xs text-zinc-500 mb-4">
+            Sign in to create PRs and manage repositories directly.
+          </p>
+          <button
+            onClick={handleSignInWithGithub}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+          >
+            <LogIn size={14} />
+            Sign in with GitHub
+          </button>
+        </div>
+      )}
+
+      {/* OAuth flow: starting */}
+      {ghState.phase === "no-token" && oauthPhase === "starting" && (
+        <div className="border border-zinc-800 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Loader2 size={16} className="animate-spin text-zinc-400" />
+            <p className="text-sm text-zinc-300">Starting authorization...</p>
+          </div>
+        </div>
+      )}
+
+      {/* OAuth flow: waiting for user to authorize */}
+      {ghState.phase === "no-token" && oauthPhase === "waiting" && (
+        <div className="border border-zinc-800 rounded-lg p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Loader2 size={14} className="animate-spin text-[var(--accent)]" />
+            <p className="text-sm text-zinc-300 font-medium">Waiting for authorization</p>
+          </div>
+
+          <p className="text-xs text-zinc-500 mb-3">
+            Enter the code below on GitHub's device activation page (opened in your browser).
+          </p>
+
+          {/* One-time code */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 mb-3 flex items-center justify-between">
+            <code
+              id="oauth-user-code"
+              className="text-lg tracking-widest font-bold text-white select-all"
+            >
+              {oauthUserCode}
+            </code>
+            <button
+              onClick={handleCopyCode}
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors bg-transparent border-none cursor-pointer"
+              title="Copy code"
+            >
+              <Copy size={12} />
+              Copy
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => request("openUrl", { url: `${oauthVerificationUri}?code=${oauthUserCode}` })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors"
+            >
+              <ExternalLink size={12} />
+              Open GitHub
+            </button>
+            <button
+              onClick={stopOAuthPolling}
+              className="px-3 py-1.5 rounded text-xs text-zinc-500 hover:text-zinc-300 transition-colors bg-transparent border border-zinc-800 hover:border-zinc-700 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* OAuth flow: expired */}
+      {ghState.phase === "no-token" && oauthPhase === "expired" && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-4 flex items-start gap-2">
+          <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-amber-300">{oauthError || "Session expired"}</p>
+            <button
+              onClick={() => setOauthPhase("idle")}
+              className="mt-1 text-xs text-[var(--accent)] hover:underline bg-transparent border-none p-0 cursor-pointer"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* OAuth flow: error */}
+      {ghState.phase === "no-token" && oauthPhase === "error" && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 flex items-start gap-2">
+          <XCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-red-300">{oauthError || "Authorization failed"}</p>
+            <button
+              onClick={() => setOauthPhase("idle")}
+              className="mt-1 text-xs text-[var(--accent)] hover:underline bg-transparent border-none p-0 cursor-pointer"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Error state */}
       {ghState.phase === "error" && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 flex items-start gap-2">
           <XCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-red-300">{ghState.message}</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-red-300">{ghState.message}</p>
+            {ghState.message?.includes("gh auth login") && (
+              <p className="text-xs text-zinc-500 mt-1">
+                Click "Sign in with GitHub" above, or paste a Personal Access Token below.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -431,14 +517,12 @@ export default function GhSettings() {
           <p className="text-xs text-zinc-600 mt-1">
             Optional if you've already run <code className="text-zinc-500">gh auth login</code>.{" "}
             Otherwise, requires <code className="text-zinc-500">repo</code> scope.{" "}
-            <a
-              href="https://github.com/settings/tokens"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--accent)] hover:underline"
+            <button
+              onClick={() => request("openUrl", { url: "https://github.com/settings/tokens" })}
+              className="text-[var(--accent)] hover:underline inline bg-transparent border-none p-0 text-xs cursor-pointer"
             >
               Create one
-            </a>
+            </button>
           </p>
         </div>
 
@@ -458,15 +542,15 @@ export default function GhSettings() {
       <div className="flex items-center gap-2 mt-4">
         <button
           onClick={handleTest}
-          disabled={ghTesting || saveGhSettings.isPending}
+          disabled={testing || saveGhSettings.isPending}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors disabled:opacity-50"
         >
-          {ghTesting ? (
+          {testing ? (
             <Loader2 size={12} className="animate-spin" />
           ) : (
             <Terminal size={12} />
           )}
-          {ghTesting ? "Testing..." : ghState.phase === "authed" ? "Re-test Connection" : "Test Connection"}
+          {testing ? "Testing..." : ghState.phase === "authed" ? "Re-test Connection" : "Test Connection"}
         </button>
 
         <button
@@ -481,17 +565,6 @@ export default function GhSettings() {
           )}
           {saveGhSettings.isPending ? "Saving..." : "Save"}
         </button>
-
-        {ghState.phase !== "authed" && ghState.phase !== "missing" && ghState.phase !== "checking" && (
-          <button
-            onClick={() => setShowingOAuth(true)}
-            disabled={showingOAuth}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors disabled:opacity-50 ml-auto"
-          >
-            <LogIn size={12} />
-            Sign in with GitHub
-          </button>
-        )}
 
         {ghState.phase === "authed" && (
           <button

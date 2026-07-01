@@ -138,8 +138,11 @@ export type OpenTackRPC = {
       // ─── GitHub CLI ──────────────────────────────────────
       ghTest: { params: void; response: { ok: boolean; user?: { login: string; name: string | null; email: string | null; avatarUrl: string | null; plan: string | null }; error?: string } }
       ghInstall: { params: void; response: { success: boolean; path?: string; error?: string; message?: string } }
-      ghAuthStart: { params: void; response: { deviceCode: string; userCode: string; verificationUri: string; interval: number } }
-      ghAuthPoll: { params: { deviceCode: string }; response: { status: string; token?: string; error?: string } }
+      ghAuthLogin: { params: void; response: { processId: string; userCode: string; verificationUri: string } }
+      ghAuthLoginPoll: { params: { processId: string }; response: { status: "pending" | "success" | "error" | "expired"; error?: string; user?: { login: string; name: string | null; email: string | null; avatarUrl: string | null; plan: string | null } } }
+
+      // ─── System ─────────────────────────────────────────
+      openUrl: { params: { url: string }; response: void }
 
       // ─── Submit for Review / PR ──────────────────────────
       submitForReview: { params: { ticketId: string }; response: { prUrl: string | null; commitHash: string | null } }

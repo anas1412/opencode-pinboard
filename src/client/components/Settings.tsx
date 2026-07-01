@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRepos, useUpdateRepo } from "../hooks/useRepos";
 import { fetchSettings, updateSettings } from "../api/settings";
 import { fetchOpencodeConfig, updateOpencodeConfig, fetchAgents, fetchOpencodeTuiConfig, updateOpencodeTuiConfig } from "../api/opencode-config";
 import { THEMES, OPENCODE_THEMES, type Theme, type OpencodeTheme } from "../../shared/types";
 import { useAppStore } from "../store/app";
-import { Settings2, Plus, X, Save, Send, Palette, Cpu, Bot, Paintbrush } from "lucide-react";
-import GhSettings from "./GhSettings";
+import { Settings2, Plus, X, Save, Send, Palette, Cpu, Bot, Paintbrush, GitBranch, Loader2, CheckCircle, ExternalLink } from "lucide-react";
 
 // ─── Env var editor (unchanged from original) ──────────────────────────
 
@@ -158,9 +158,11 @@ function SectionCard({ icon, title, description, children }: {
 // ─── Main Settings page ──────────────────────────────────────────────
 
 export default function Settings() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: repos, isLoading: reposLoading } = useRepos();
   const setTheme = useAppStore((s) => s.setTheme);
+  const { ghUser, ghPhase } = useAppStore();
 
   // ── Load settings ──────────────────────────────────────────────────
   const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -423,8 +425,46 @@ export default function Settings() {
             </div>
           </SectionCard>
 
-          {/* ── Section 5: GitHub ────────────────────────────── */}
-          <GhSettings />
+          {/* ── Section 5: GitHub (summary → dedicated page) ── */}
+          <SectionCard
+            icon={<GitBranch size={14} />}
+            title="GitHub"
+            description="Connect your GitHub account to create PRs and manage repositories."
+          >
+            <div className="flex items-center justify-between">
+              {ghPhase === "authed" && ghUser ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                    {ghUser.avatarUrl ? (
+                      <img src={ghUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[11px] font-medium text-zinc-400">{ghUser.login[0].toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-zinc-300">{ghUser.name || ghUser.login}</p>
+                    <p className="text-xs text-zinc-600">{ghUser.login}</p>
+                  </div>
+                  <CheckCircle size={14} className="text-emerald-400 ml-2" />
+                </div>
+              ) : ghPhase === "checking" || ghPhase === null ? (
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <Loader2 size={14} className="animate-spin" />
+                  Checking...
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500">Not connected</p>
+              )}
+
+              <button
+                onClick={() => navigate({ to: "/settings/github" })}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              >
+                Manage
+                <ExternalLink size={11} />
+              </button>
+            </div>
+          </SectionCard>
 
           {/* ── Section 6: Repo env vars ────────────────────────────── */}
           <div>
