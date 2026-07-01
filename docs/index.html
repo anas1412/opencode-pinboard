@@ -164,6 +164,15 @@ button{ font-family:inherit; cursor:pointer; }
   color:var(--paper);
 }
 .btn-ghost:hover{ border-color:var(--flare-line); background:rgba(255,122,41,.06); }
+.btn-detected{ position:relative; }
+.btn-detected::after{
+  content:"detected"; position:absolute; top:-8px; right:-6px;
+  font-family:var(--font-mono); font-size:.6rem; letter-spacing:.06em;
+  text-transform:uppercase;
+  background:var(--flare); color:#1a0c02;
+  padding:1px 6px; border-radius:5px;
+  font-weight:600;
+}
 .btn-sm{ padding:8px 14px; font-size:.82rem; border-radius:8px; }
 
 /* ============================================================
@@ -849,6 +858,17 @@ bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label=
     var onLeave = function(){ tiltCard.style.transform = "rotate(-1.1deg)"; };
     tiltCard.addEventListener("mousemove", onMove);
     tiltCard.addEventListener("mouseleave", onLeave);
+  }
+
+  /* OS detection — show only the matching binary button */
+  var plat = navigator.platform || "";
+  var isWin = plat.indexOf("Win") === 0;
+  var isLinux = plat.indexOf("Linux") === 0 || plat.indexOf("X11") === 0;
+  var btns = document.querySelectorAll(".hero-ctas .btn-ghost");
+  if (btns.length === 2) {
+    if (isWin) { btns[0].style.display = "none"; btns[1].classList.add("btn-detected"); }
+    else if (isLinux) { btns[1].style.display = "none"; btns[0].classList.add("btn-detected"); }
+    else { btns[0].style.display = "none"; btns[1].style.display = "none"; }
   }
 })();
 </script>
