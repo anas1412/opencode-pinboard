@@ -2,8 +2,9 @@ import { spawn, type ChildProcess, execSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import path from "path";
-import { and, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, schema } from "../db";
+import { createSdkClient } from "../shared/opencode-client";
 
 interface ServerInstance {
   proc: ChildProcess;
@@ -143,19 +144,42 @@ export function getSessionPid(sessionId: string): number | undefined {
  * Find any active opencode server port by querying the sessions table.
  * Since all `opencode serve` processes share the same global SQLite DB,
  * any active server can serve as a proxy for SDK operations.
+ *
+ * Health-checks each candidate before returning. Stale DB rows (server
+ * process died) are cleaned up automatically so callers never get a
+ * dead port.
  */
 export async function getAnyActivePort(): Promise<number | null> {
-  const row = await db
-    .select({ serverPort: schema.sessions.serverPort })
+  const rows = await db
+    .select({ id: schema.sessions.id, serverPort: schema.sessions.serverPort })
     .from(schema.sessions)
     .where(
       and(
         isNull(schema.sessions.endedAt),
         sql`${schema.sessions.serverPort} IS NOT NULL`,
       ),
-    )
-    .limit(1);
-  return row[0]?.serverPort ?? null;
+    );
+
+  for (const row of rows) {
+    const port = row.serverPort;
+    if (!port) continue;
+
+    const client = createSdkClient(port);
+    try {
+      const result = await client.global.health();
+      if ((result.data as any)?.healthy === true) return port;
+    } catch {
+      // Server not reachable — fall through to clean up
+    }
+
+    // Stale DB entry — mark session as ended so we don't retry it
+    await db
+      .update(schema.sessions)
+      .set({ endedAt: Date.now() })
+      .where(eq(schema.sessions.id, row.id));
+  }
+
+  return null;
 }
 
 /**
