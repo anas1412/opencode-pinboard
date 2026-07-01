@@ -83,3 +83,11 @@ export function improveSessionPrompt(sessionId: string): Promise<void> {
 export function submitForReview(ticketId: string): Promise<{ prUrl: string | null; commitHash: string | null }> {
   return request("submitForReview", { ticketId })
 }
+
+export function syncWorktree(ticketId: string): Promise<{ ok: boolean; message: string; conflicts: string[] }> {
+  return request("syncWorktree", { ticketId })
+}
+
+export function checkSyncStatus(ticketId: string): Promise<{ behind: number; ahead: number; error?: string }> {
+  return request("checkSyncStatus", { ticketId })
+}

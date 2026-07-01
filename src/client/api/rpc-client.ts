@@ -101,6 +101,8 @@ const REST_MAP: Record<string, RestRoute> = {
   createWorktree: { method: "POST", path: "/api/worktrees" },
   listWorktrees: { method: "GET", path: "/api/worktrees" },
   removeWorktree: { method: "DELETE", path: (p) => `/api/worktrees/${p.ticketId}` },
+  syncWorktree: { method: "POST", path: (p) => `/api/tickets/${p.ticketId}/sync` },
+  checkSyncStatus: { method: "GET", path: (p) => `/api/tickets/${p.ticketId}/sync-status` },
   pickDirectory: { method: "GET", path: "/api/system/pick-directory" },
   checkUpdates: { method: "GET", path: "/api/version/check-updates" },
   downloadUpdate: { method: "POST", path: "/api/version/download-update" },

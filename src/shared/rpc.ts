@@ -157,6 +157,8 @@ export type OpenTackRPC = {
       createWorktree: { params: { ticketId: string }; response: void }
       listWorktrees: { params: void; response: Ticket[] }
       removeWorktree: { params: { ticketId: string }; response: void }
+      syncWorktree: { params: { ticketId: string }; response: { ok: boolean; message: string; conflicts: string[] } }
+      checkSyncStatus: { params: { ticketId: string }; response: { behind: number; ahead: number; error?: string } }
 
       // ─── Version / Updates ────────────────────────────────
       checkUpdates: { params: void; response: CheckUpdatesResponse }

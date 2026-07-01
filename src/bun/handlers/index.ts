@@ -1190,6 +1190,18 @@ export async function ghAuthPoll(params: { deviceCode: string }): Promise<{ stat
   return result
 }
 
+// ─── Sync Worktree ────────────────────────────────────────────────────────
+
+export async function syncWorktree(params: { ticketId: string }): Promise<{ ok: boolean; message: string; conflicts: string[] }> {
+  const { syncWorktree: doSync } = await import("../../shared/sync-worktree")
+  return doSync(params.ticketId)
+}
+
+export async function checkSyncStatus(params: { ticketId: string }): Promise<{ behind: number; ahead: number; error?: string }> {
+  const { checkSyncStatus: check } = await import("../../shared/sync-status")
+  return check(params.ticketId)
+}
+
 // ─── Submit for Review / PR ──────────────────────────────────────────────
 
 export async function submitForReview(params: { ticketId: string }): Promise<{ prUrl: string | null; commitHash: string | null }> {

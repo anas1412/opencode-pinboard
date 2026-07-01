@@ -76,6 +76,8 @@ const rpc = BrowserView.defineRPC<OpenTackRPC>({
       createWorktree: ({ ticketId }) => handlers.createWorktree({ ticketId }),
       listWorktrees: () => handlers.listWorktrees(),
       removeWorktree: ({ ticketId }) => handlers.removeWorktree({ ticketId }),
+      syncWorktree: ({ ticketId }) => handlers.syncWorktree({ ticketId }),
+      checkSyncStatus: ({ ticketId }) => handlers.checkSyncStatus({ ticketId }),
 
       // Version / Updates
       checkUpdates: () => handlers.checkUpdates(),

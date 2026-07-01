@@ -4,6 +4,7 @@ import { useParams } from "@tanstack/react-router";
 import { ticketRoute } from "../router";
 import TicketDetail from "./TicketDetail";
 import GitToolbar from "./GitToolbar";
+import SyncBanner from "./SyncBanner";
 import { ArrowLeft, Play, Square, ExternalLink, Loader2 } from "lucide-react";
 import { request } from "../api/rpc-client";
 import { createTicketSession, fetchTicket, improveSessionPrompt } from "../api/tickets";
@@ -46,6 +47,7 @@ export default function SplitView() {
 
     setSessionId(null);
     setPhase("starting");
+    setOverlayText("loading ticket");
     setError(null);
 
     let active = true;
@@ -175,7 +177,7 @@ export default function SplitView() {
       <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-10">
         <div className="text-center space-y-4">
           <Loader2 size={24} className="mx-auto animate-spin text-blue-400" />
-          <p className="text-sm text-zinc-400">{overlayText ?? "opening opencode"}</p>
+          <p className="text-sm text-zinc-400">{overlayText ?? "loading"}</p>
         </div>
       </div>
     );
@@ -263,17 +265,13 @@ export default function SplitView() {
 
           {/* Idle / error — no URL yet */}
           {!opencodeUrl && !overlay && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center space-y-4">
-                <p className="text-sm text-zinc-400">
-                  opencode will start working on this ticket
-                </p>
-                {error && <p className="text-xs text-red-400 max-w-sm">{error}</p>}
-                <button onClick={handleStartSession} className="btn-primary-lg">
-                  <Play size={16} />
-                  Start session
-                </button>
-              </div>
+            <div className="flex flex-col items-center justify-center h-full">
+              <SyncBanner ticketId={ticketId} compact />
+              {error && <p className="text-xs text-red-400 mb-3 max-w-sm text-center">{error}</p>}
+              <button onClick={handleStartSession} className="btn-primary-lg">
+                <Play size={16} />
+                Start session
+              </button>
             </div>
           )}
         </div>

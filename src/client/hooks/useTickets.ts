@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchTickets, fetchTicket, createTicket, updateTicket, deleteTicket,
-  fetchTicketSessions, batchUpdateTickets, batchDeleteTickets, generateNotes, submitForReview,
+  fetchTicketSessions, batchUpdateTickets, batchDeleteTickets, generateNotes, submitForReview, syncWorktree, checkSyncStatus,
 } from "../api/tickets";
 import type { TicketCreateInput, TicketUpdateInput } from "../../shared/types";
 
@@ -102,6 +102,26 @@ export function useSubmitForReview() {
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["ticket", ticketId] });
     },
+  });
+}
+
+export function useSyncWorktree() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ticketId: string) => syncWorktree(ticketId),
+    onSuccess: (_data, ticketId) => {
+      // Invalidate sync-status so TicketDetail banner refreshes its behind/ahead count
+      qc.invalidateQueries({ queryKey: ["sync-status", ticketId] });
+    },
+  });
+}
+
+export function useSyncStatus(ticketId: string | null) {
+  return useQuery({
+    queryKey: ["sync-status", ticketId],
+    queryFn: () => checkSyncStatus(ticketId!),
+    enabled: !!ticketId,
+    refetchInterval: 60_000, // recheck every minute
   });
 }
 

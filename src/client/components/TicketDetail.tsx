@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useTicket, useUpdateTicket, useDeleteTicket, useTicketSessions, useGenerateNotes, useSubmitForReview } from "../hooks/useTickets";
+import SyncBanner from "./SyncBanner";
 import { useRepos } from "../hooks/useRepos";
 import { useNavigate } from "@tanstack/react-router";
 import type { TicketStatus, TicketPriority, TicketCategory } from "../../shared/types";
@@ -309,6 +310,9 @@ export default function TicketDetail({ ticketId, onStartSession, onStopSession, 
             {new Date(ticket.createdAt).toLocaleDateString()}
           </span>
         </div>
+
+        {/* Behind banner */}
+        <SyncBanner ticketId={ticket.id} />
 
         {/* Description */}
         {ticket.description && (

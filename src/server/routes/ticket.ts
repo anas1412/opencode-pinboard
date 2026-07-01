@@ -10,6 +10,8 @@ import { startSessionServer, stopSessionServer, getAnyActivePort } from "../open
 import { removeWorktreeForTicket } from "./worktree";
 import { emitSse } from "../sse";
 import { submitForReview } from "../../shared/submit-for-review";
+import { syncWorktree } from "../../shared/sync-worktree";
+import { checkSyncStatus } from "../../shared/sync-status";
 import { z } from "zod";
 
 export function registerTicketRoutes(app: FastifyInstance) {
@@ -408,6 +410,39 @@ ${transcriptText}
     }
   });
 
+  // Sync worktree with base branch
+  app.post("/api/tickets/:id/sync", async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const [ticket] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, id));
+    if (!ticket)
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Ticket not found" });
+
+    try {
+      const result = await syncWorktree(id);
+      return result;
+    } catch (err) {
+      return reply.status(500).send({
+        error: "SYNC_FAILED",
+        message: err instanceof Error ? err.message : "Failed to sync worktree",
+      });
+    }
+  });
+
+  // Check sync status (behind/ahead counts)
+  app.get("/api/tickets/:id/sync-status", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      const result = await checkSyncStatus(id);
+      return result;
+    } catch (err) {
+      return reply.status(500).send({
+        error: "SYNC_STATUS_FAILED",
+        message: err instanceof Error ? err.message : "Failed to check sync status",
+      });
+    }
+  });
+
   // ── Batch operations ──
 
   // Batch update — change status/priority/category on multiple tickets
@@ -468,8 +503,11 @@ function deserializeTicket(row: typeof schema.tickets.$inferSelect) {
 }
 
 /**
- * Compute changed files by checking git in the worktree (or main repo).
- * Checks three sources: branch diff, unstaged changes, staged changes.
+ * Compute changed files by checking git in the worktree.
+ * Only shows files actually related to this ticket:
+ * - If a worktree exists: committed branch diffs + unstaged/staged within the worktree
+ * - If no worktree: only committed branch diffs (the branch may exist on disk even without a worktree)
+ * - Never scans the main repo's working tree (avoids picking up unrelated changes)
  */
 export async function computeChangedFiles(row: typeof schema.tickets.$inferSelect): Promise<string[]> {
   if (!row.branch) return [];
@@ -477,28 +515,31 @@ export async function computeChangedFiles(row: typeof schema.tickets.$inferSelec
   const [repo] = await db.select().from(schema.repos).where(eq(schema.repos.id, row.repoId));
   if (!repo || !existsSync(repo.localPath)) return [];
 
-  // Use the worktree path if it exists — the branch is checked out there,
-  // and that's where opencode actually makes changes.
-  const gitDir = row.worktreePath && existsSync(row.worktreePath) ? row.worktreePath : repo.localPath;
+  const hasWorktree = row.worktreePath && existsSync(row.worktreePath);
+  const gitDir = hasWorktree ? row.worktreePath! : repo.localPath;
   const baseBranch = row.baseBranch || repo.defaultBranch || "main";
   const files = new Set<string>();
 
-  // 1. Committed changes unique to the branch
+  // Committed changes unique to the branch
   const committed = Bun.spawnSync(["git", "-C", gitDir, "diff", "--name-only", `${baseBranch}...${row.branch}`]);
   if (committed.exitCode === 0) {
     committed.stdout.toString().trim().split("\n").filter(Boolean).forEach((f) => files.add(f));
   }
 
-  // 2. Unstaged changes (files opencode is actively editing)
-  const unstaged = Bun.spawnSync(["git", "-C", gitDir, "diff", "--name-only"]);
-  if (unstaged.exitCode === 0) {
-    unstaged.stdout.toString().trim().split("\n").filter(Boolean).forEach((f) => files.add(f));
-  }
+  // Only include unstaged/staged changes when inside a worktree.
+  // Without a worktree, these would reflect the main repo's dirty files (unrelated).
+  if (hasWorktree) {
+    // Unstaged changes (files opencode is actively editing)
+    const unstaged = Bun.spawnSync(["git", "-C", gitDir, "diff", "--name-only"]);
+    if (unstaged.exitCode === 0) {
+      unstaged.stdout.toString().trim().split("\n").filter(Boolean).forEach((f) => files.add(f));
+    }
 
-  // 3. Staged but not committed changes
-  const staged = Bun.spawnSync(["git", "-C", gitDir, "diff", "--cached", "--name-only"]);
-  if (staged.exitCode === 0) {
-    staged.stdout.toString().trim().split("\n").filter(Boolean).forEach((f) => files.add(f));
+    // Staged but not committed changes
+    const staged = Bun.spawnSync(["git", "-C", gitDir, "diff", "--cached", "--name-only"]);
+    if (staged.exitCode === 0) {
+      staged.stdout.toString().trim().split("\n").filter(Boolean).forEach((f) => files.add(f));
+    }
   }
 
   return Array.from(files);
