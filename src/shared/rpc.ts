@@ -114,7 +114,8 @@ export type OpenTackRPC = {
           ticketId: string
           ticketTitle: string
           repoName: string
-          models: Array<{ model: string; costUsd: number; tokens: number }>
+          sessionCount: number
+          models: Array<{ model: string; costUsd: number; tokens: number; sessionCount: number }>
           totalCostUsd: number
           totalTokens: number
         }>

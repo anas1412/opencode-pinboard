@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { gte, and, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "../../db";
-import { dailyCostHistory, aggregateOpencodeSessionsSince, enrichSessions, queryOpencodeSessionsSince } from "../../shared/opencode-db";
+import { dailyCostHistory, aggregateOpencodeSessionsSince, enrichSessions, queryOpencodeSessionsSince, normalizeModel } from "../../shared/opencode-db";
 import { getOpenTackWorktreesDir } from "../../paths";
 
 export function registerCostRoutes(app: FastifyInstance) {
@@ -76,7 +76,6 @@ export function registerCostRoutes(app: FastifyInstance) {
         ticketTitle: schema.tickets.title,
         repoId: schema.tickets.repoId,
         repoName: schema.repos.name,
-        model: schema.sessions.model,
         opencodeSessionId: schema.sessions.opencodeSessionId,
       })
       .from(schema.sessions)
@@ -84,7 +83,7 @@ export function registerCostRoutes(app: FastifyInstance) {
       .innerJoin(schema.repos, eq(schema.tickets.repoId, schema.repos.id))
       .where(and(...conds));
 
-    // Enrich with opencode DB costs
+    // Enrich with opencode DB costs and model (single source of truth)
     const enriched = enrichSessions(rows);
 
     const ticketMap = new Map<string, {
@@ -100,6 +99,7 @@ export function registerCostRoutes(app: FastifyInstance) {
 
     for (const row of enriched) {
       if (!row.ticketId) continue;
+      if (!row.model) continue; // skip sessions without a model in opencode DB
       let entry = ticketMap.get(row.ticketId);
       if (!entry) {
         entry = {
@@ -142,16 +142,17 @@ export function registerCostRoutes(app: FastifyInstance) {
 
   // Per-model cost breakdown
   app.get("/api/costs/per-model", async () => {
-    const rows = await db
-      .select({
-        model: schema.sessions.model,
-        ticketId: schema.sessions.ticketId,
-        opencodeSessionId: schema.sessions.opencodeSessionId,
-      })
-      .from(schema.sessions);
+    // Query opencode DB directly (same source as summary) — no fallback
+    const allSessions = queryOpencodeSessionsSince(0);
 
-    // Enrich with opencode DB costs
-    const enriched = enrichSessions(rows);
+    // Cross-reference with OpenTack sessions for ticket counts
+    const ticketMap = new Map<string, string>();
+    const otSessions = await db
+      .select({ ticketId: schema.sessions.ticketId, opencodeSessionId: schema.sessions.opencodeSessionId })
+      .from(schema.sessions);
+    for (const s of otSessions) {
+      if (s.ticketId && s.opencodeSessionId) ticketMap.set(s.opencodeSessionId, s.ticketId);
+    }
 
     const perModel = new Map<string, {
       totalCost: number;
@@ -160,17 +161,18 @@ export function registerCostRoutes(app: FastifyInstance) {
       tickets: Set<string>;
     }>();
 
-    for (const s of enriched) {
-      const key = s.model || "unknown";
-      let entry = perModel.get(key);
-      if (!entry) {
-        entry = { totalCost: 0, totalTokens: 0, sessionCount: 0, tickets: new Set() };
-        perModel.set(key, entry);
+    for (const s of allSessions) {
+      const model = s.model ? normalizeModel(s.model) : null;
+      if (!model) continue;
+      if (!perModel.has(model)) {
+        perModel.set(model, { totalCost: 0, totalTokens: 0, sessionCount: 0, tickets: new Set() });
       }
+      const entry = perModel.get(model)!;
       entry.sessionCount++;
-      if (s.ticketId) entry.tickets.add(s.ticketId);
-      entry.totalCost += s.costUsd;
-      entry.totalTokens += s.totalTokens;
+      const ticketId = ticketMap.get(s.id);
+      if (ticketId) entry.tickets.add(ticketId);
+      entry.totalCost += s.cost;
+      entry.totalTokens += s.tokensInput + s.tokensOutput + s.tokensReasoning;
     }
 
     return Array.from(perModel.entries()).map(([model, data]) => ({

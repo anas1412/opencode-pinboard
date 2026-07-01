@@ -44,7 +44,6 @@ export interface CostPerTicketEntry {
 export function fetchCostPerTicket(params?: { days?: number; repoId?: string }): Promise<CostPerTicketEntry[]> {
   return request("costPerTicket", {
     startDate: params?.days ? new Date(Date.now() - params.days * 86400000).toISOString() : undefined,
-    search: undefined,
     repoId: params?.repoId,
   }).then((entries) =>
     entries.map((e) => ({
@@ -52,14 +51,14 @@ export function fetchCostPerTicket(params?: { days?: number; repoId?: string }):
       ticketTitle: e.ticketTitle,
       repoId: "",
       repoName: e.repoName,
-      sessionCount: 0,
+      sessionCount: e.sessionCount ?? 0,
       totalTokens: e.totalTokens,
       totalCost: e.totalCostUsd,
-      models: e.models.map((m) => ({
+      models: (e.models ?? []).map((m) => ({
         model: m.model,
         tokens: m.tokens,
         cost: m.costUsd,
-        sessionCount: 0,
+        sessionCount: m.sessionCount ?? 0,
       })),
     })),
   )

@@ -61,7 +61,7 @@ import {
 
 import { updateOpencodeSessionDirectory } from "../../server/routes/sqlite-helpers"
 import { createSdkClient, getGlobalConfig } from "../../shared/opencode-client"
-import { dailyCostHistory, aggregateOpencodeSessionsSince, getSingleSessionCost, queryOpencodeSessionsSince, enrichSessions } from "../../shared/opencode-db"
+import { dailyCostHistory, aggregateOpencodeSessionsSince, getSingleSessionCost, queryOpencodeSessionsSince, enrichSessions, normalizeModel } from "../../shared/opencode-db"
 import { sendToSession, generateAndSendImprovedPrompt } from "../../shared/prompt-improver"
 import { finalizeSessionCost, markSessionEnded, findOrCreateTicketSessionRow } from "../../shared/session-lifecycle"
 import { createWorktreeForTicket } from "../../server/routes/worktree"
@@ -1037,33 +1037,36 @@ export async function costPerTicket(params: { startDate?: string; endDate?: stri
       ...(params.repoId ? [eq(schema.tickets.repoId, params.repoId)] : []),
     ))
 
-  // Enrich with opencode DB costs
+  // Enrich with opencode DB costs and model (single source of truth)
   const enrichedSessions = enrichSessions(sessions.map((s) => s.session))
 
-  const perTicket = new Map<string, { title: string; repoName: string; models: Map<string, { costUsd: number; tokens: number }> }>()
+  const perTicket = new Map<string, { title: string; repoName: string; sessionCount: number; models: Map<string, { costUsd: number; tokens: number; sessionCount: number }> }>()
 
   for (let i = 0; i < sessions.length; i++) {
     const { session, ticketTitle, repoName } = sessions[i]
     const cost = enrichedSessions[i]
     if (!session.ticketId) continue
+    if (!cost.model) continue // skip sessions without a model in opencode DB
     const key = session.ticketId
     if (!perTicket.has(key)) {
-      perTicket.set(key, { title: ticketTitle || "Unknown", repoName: repoName || "Unknown", models: new Map() })
+      perTicket.set(key, { title: ticketTitle || "Unknown", repoName: repoName || "Unknown", sessionCount: 0, models: new Map() })
     }
     const entry = perTicket.get(key)!
-    const modelKey = session.model || "unknown"
-    if (!entry.models.has(modelKey)) {
-      entry.models.set(modelKey, { costUsd: 0, tokens: 0 })
+    entry.sessionCount++
+    if (!entry.models.has(cost.model)) {
+      entry.models.set(cost.model, { costUsd: 0, tokens: 0, sessionCount: 0 })
     }
-    const m = entry.models.get(modelKey)!
+    const m = entry.models.get(cost.model)!
     m.costUsd += cost.costUsd
     m.tokens += cost.totalTokens
+    m.sessionCount++
   }
 
   return Array.from(perTicket.entries()).map(([ticketId, data]) => ({
     ticketId,
     ticketTitle: data.title,
     repoName: data.repoName,
+    sessionCount: data.sessionCount,
     models: Array.from(data.models.entries()).map(([model, d]) => ({ model, ...d })),
     totalCostUsd: Array.from(data.models.values()).reduce((s, m) => s + m.costUsd, 0),
     totalTokens: Array.from(data.models.values()).reduce((s, m) => s + m.tokens, 0),
@@ -1071,40 +1074,47 @@ export async function costPerTicket(params: { startDate?: string; endDate?: stri
 }
 
 export async function costPerModel(params: { startDate?: string; endDate?: string }) {
-  const sessions = await db
-    .select({
-      model: schema.sessions.model,
-      ticketId: schema.sessions.ticketId,
-      opencodeSessionId: schema.sessions.opencodeSessionId,
-    })
+  const startMs = params.startDate ? new Date(params.startDate).getTime() : 0
+  const endMs = params.endDate ? new Date(params.endDate).getTime() : Infinity
+
+  // Query the opencode DB directly (same source as costSummary) — no fallback, no enrichment
+  const allSessions = queryOpencodeSessionsSince(startMs)
+
+  // Also get ticket mapping from OpenTack sessions for ticketCount
+  const ticketMap = new Map<string, string>() // opencodeSessionId → ticketId
+  const otSessions = await db
+    .select({ ticketId: schema.sessions.ticketId, opencodeSessionId: schema.sessions.opencodeSessionId })
     .from(schema.sessions)
     .where(and(
-      ...(params.startDate ? [gte(schema.sessions.createdAt, new Date(params.startDate).getTime())] : []),
-      ...(params.endDate ? [lte(schema.sessions.createdAt, new Date(params.endDate).getTime())] : []),
+      gte(schema.sessions.createdAt, startMs),
+      ...(endMs < Infinity ? [lte(schema.sessions.createdAt, endMs)] : []),
     ))
+  for (const s of otSessions) {
+    if (s.ticketId && s.opencodeSessionId) ticketMap.set(s.opencodeSessionId, s.ticketId)
+  }
 
-  // Enrich with opencode DB costs
-  const enriched = enrichSessions(sessions)
+  const perModel = new Map<string, { costUsd: number; tokens: number; sessionCount: number; tickets: Set<string> }>()
 
-  const perModel = new Map<string, { costUsd: number; tokens: number; sessions: Set<string>; tickets: Set<string> }>()
-
-  for (const s of enriched) {
-    const key = s.model || "unknown"
-    if (!perModel.has(key)) {
-      perModel.set(key, { costUsd: 0, tokens: 0, sessions: new Set(), tickets: new Set() })
+  for (const s of allSessions) {
+    if (s.timeCreated > endMs) continue
+    const model = s.model ? normalizeModel(s.model) : null
+    if (!model) continue
+    if (!perModel.has(model)) {
+      perModel.set(model, { costUsd: 0, tokens: 0, sessionCount: 0, tickets: new Set() })
     }
-    const entry = perModel.get(key)!
-    entry.sessions.add(s.ticketId || "")
-    if (s.ticketId) entry.tickets.add(s.ticketId)
-    entry.costUsd += s.costUsd
-    entry.tokens += s.totalTokens
+    const entry = perModel.get(model)!
+    entry.sessionCount++
+    const ticketId = ticketMap.get(s.id)
+    if (ticketId) entry.tickets.add(ticketId)
+    entry.costUsd += s.cost
+    entry.tokens += s.tokensInput + s.tokensOutput + s.tokensReasoning
   }
 
   return Array.from(perModel.entries()).map(([model, data]) => ({
     model,
     costUsd: data.costUsd,
     tokens: data.tokens,
-    sessionCount: data.sessions.size,
+    sessionCount: data.sessionCount,
     ticketCount: data.tickets.size,
   }))
 }

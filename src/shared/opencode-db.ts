@@ -111,6 +111,7 @@ export function aggregateOpencodeSessionsSince(since: number): CostTotal {
 interface SessionCost {
   costUsd: number;
   totalTokens: number;
+  model: string | null;
 }
 
 /**
@@ -138,15 +139,16 @@ export function getSessionCostsMap(ids: string[]): Map<string, SessionCost> {
 export function getSingleSessionCost(id: string): SessionCost | null {
   const db = opencodeDb();
   const stmt = db.prepare(`
-    SELECT cost, tokens_input, tokens_output, tokens_reasoning
+    SELECT cost, tokens_input, tokens_output, tokens_reasoning, model
     FROM session
     WHERE id = ?
   `);
-  const row = stmt.get(id) as { cost: number; tokens_input: number; tokens_output: number; tokens_reasoning: number } | undefined;
+  const row = stmt.get(id) as { cost: number; tokens_input: number; tokens_output: number; tokens_reasoning: number; model: string | null } | undefined;
   if (!row) return null;
   return {
     costUsd: row.cost,
     totalTokens: row.tokens_input + row.tokens_output + row.tokens_reasoning,
+    model: row.model,
   };
 }
 
@@ -156,27 +158,50 @@ function buildCostMap(ids: string[] | null): Map<string, SessionCost> {
   let params: any[];
   if (ids) {
     const placeholders = ids.map(() => "?").join(",");
-    sql = `SELECT id, cost, tokens_input, tokens_output, tokens_reasoning FROM session WHERE id IN (${placeholders})`;
+    sql = `SELECT id, cost, tokens_input, tokens_output, tokens_reasoning, model FROM session WHERE id IN (${placeholders})`;
     params = ids;
   } else {
-    sql = "SELECT id, cost, tokens_input, tokens_output, tokens_reasoning FROM session";
+    sql = "SELECT id, cost, tokens_input, tokens_output, tokens_reasoning, model FROM session";
     params = [];
   }
   const stmt = db.prepare(sql);
-  const rows = stmt.all(...params) as Array<{ id: string; cost: number; tokens_input: number; tokens_output: number; tokens_reasoning: number }>;
+  const rows = stmt.all(...params) as Array<{ id: string; cost: number; tokens_input: number; tokens_output: number; tokens_reasoning: number; model: string | null }>;
   const map = new Map<string, SessionCost>();
   for (const r of rows) {
     map.set(r.id, {
       costUsd: r.cost,
       totalTokens: r.tokens_input + r.tokens_output + r.tokens_reasoning,
+      model: r.model,
     });
   }
   return map;
 }
 
 /**
+ * Normalize a model string from the opencode DB.
+ * - Plain strings (`opencode/big-pickle`) → kept as-is
+ * - JSON strings (`{"id":"...","variant":"..."}`) → extract `id`
+ * - If variant is `"default"`, it's the same as no variant → return just `id`
+ * - Meaningful variants (e.g. `"claude"`) are preserved in the JSON string
+ *   so they group separately from the base model.
+ */
+export function normalizeModel(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw);
+    const id = parsed.id;
+    if (!id) return raw;
+    if (parsed.variant && parsed.variant !== "default") return raw;
+    return id;
+  } catch {
+    return raw;
+  }
+}
+
+/**
  * Enrich an array of session-like objects with cost/token data from opencode DB.
- * Batch-lookup by opencodeSessionId, returns new objects with costUsd/totalTokens.
+ * Also overwrites `model` with the normalized opencode DB value (single source of truth).
+ * If opencode DB has no model for a session, `model` is set to undefined so
+ * callers can skip it cleanly in model-based breakdowns.
  *
  * Usage:
  *   const sessions = await db.select().from(schema.sessions);
@@ -184,14 +209,20 @@ function buildCostMap(ids: string[] | null): Map<string, SessionCost> {
  */
 export function enrichSessions<T extends { opencodeSessionId: string | null }>(
   sessions: T[],
-): (T & { costUsd: number; totalTokens: number })[] {
+): (T & { costUsd: number; totalTokens: number; model: string | undefined })[] {
   const ids = sessions.map((s) => s.opencodeSessionId).filter(Boolean) as string[];
   if (ids.length === 0) {
-    return sessions.map((s) => ({ ...s, costUsd: 0, totalTokens: 0 }));
+    return sessions.map((s) => ({ ...s, costUsd: 0, totalTokens: 0, model: undefined }));
   }
   const costMap = getSessionCostsMap(ids);
   return sessions.map((s) => {
     const c = s.opencodeSessionId ? costMap.get(s.opencodeSessionId) : null;
-    return { ...s, costUsd: c?.costUsd ?? 0, totalTokens: c?.totalTokens ?? 0 };
+    const rawModel = c?.model || undefined;
+    return {
+      ...s,
+      model: rawModel ? normalizeModel(rawModel) : undefined,
+      costUsd: c?.costUsd ?? 0,
+      totalTokens: c?.totalTokens ?? 0,
+    };
   });
 }
