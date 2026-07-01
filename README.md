@@ -4,21 +4,21 @@
   <img src="./public/OG-preview.png" alt="Pinboard logo" width="800">
 </p>
 
-**Pin your opencode work like a pro — without leaving your browser.**
+**Free AI coding agent · tickets · git · PRs — all local, open source.**
 
 > **Not affiliated with OpenCode.** This project is built by the community, not the OpenCode team. It is not officially endorsed by or associated with [opencode](https://github.com/anomalyco/opencode) or its maintainers.
 
-Pinboard is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
+Pinboard combines AI coding, tickets, git automation, and cost tracking in one desktop app — free, open source, with any LLM provider you choose. Everything runs on your machine; your code never leaves.
 
 ## Why?
 
-opencode is great at what it does — it's an AI coding agent that runs in your terminal. But once you have multiple projects going, it's easy to lose track:
+Once you have multiple projects going, it's easy to lose track:
 
 - Which repos am I working on?
 - What was I doing in that session yesterday?
 - How much did that feature cost in API tokens?
 
-Pinboard gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local AI coding sessions — but without the setup, the cloud, or the complexity.
+Pinboard gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local development — but without the setup, the cloud, or the complexity.
 
 ## How it works
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pinboard — Pin your opencode work like a pro</title>
-<meta name="description" content="Pinboard turns scattered opencode terminal sessions into a real local ticket board. Repos, branches, costs, and full conversation history — nothing leaves your machine.">
+<title>Pinboard — Local development platform</title>
+<meta name="description" content="Pinboard is a local development platform. Tickets, branches, AI coding sessions, and cost tracking — all in one place, nothing leaves your machine.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='72' font-size='72' text-anchor='middle'%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,15 +164,6 @@ button{ font-family:inherit; cursor:pointer; }
   color:var(--paper);
 }
 .btn-ghost:hover{ border-color:var(--flare-line); background:rgba(255,122,41,.06); }
-.btn-detected{ position:relative; }
-.btn-detected::after{
-  content:"detected"; position:absolute; top:-8px; right:-6px;
-  font-family:var(--font-mono); font-size:.6rem; letter-spacing:.06em;
-  text-transform:uppercase;
-  background:var(--flare); color:#1a0c02;
-  padding:1px 6px; border-radius:5px;
-  font-weight:600;
-}
 .btn-sm{ padding:8px 14px; font-size:.82rem; border-radius:8px; }
 
 /* ============================================================
@@ -235,16 +226,27 @@ button{ font-family:inherit; cursor:pointer; }
 @media (max-width:920px){
   .hero-grid{ grid-template-columns:1fr; }
 }
-.hero-pill{
+.hero-tag{
+  display:inline-flex; align-items:center; gap:0;
+  position:relative;
+  margin-bottom:28px;
+  opacity:0; animation:riseIn .7s var(--ease) forwards; animation-delay:.05s;
+}
+.hero-tag-text{
   display:inline-flex; align-items:center; gap:8px;
   font-family:var(--font-mono); font-size:.76rem; letter-spacing:.06em;
   color:var(--ember);
-  background:var(--flare-soft);
+  background:var(--ink-2);
   border:1px solid var(--flare-line);
-  padding:7px 13px; border-radius:30px;
-  margin-bottom:22px;
-  opacity:0; animation:riseIn .7s var(--ease) forwards; animation-delay:.05s;
+  padding:8px 15px 8px 17px; border-radius:var(--radius-sm);
+  position:relative;
 }
+.pin--tag{
+  width:14px; height:14px; top:-8px; left:50%; transform:translateX(-50%);
+  position:absolute;
+  z-index:4;
+}
+.pin--tag::after{ top:10px; height:9px; }
 .hero h1{
   font-size:clamp(2.5rem,5.6vw,4.2rem);
   line-height:1.04;
@@ -270,7 +272,7 @@ button{ font-family:inherit; cursor:pointer; }
 
 @keyframes riseIn{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
 @media (prefers-reduced-motion:reduce){
-  .hero-pill,.hero h1,.hero .lede,.hero-ctas,.trust-row{ animation:none; opacity:1; }
+  .hero-tag,.hero h1,.hero .lede,.hero-ctas,.trust-row{ animation:none; opacity:1; }
 }
 
 /* hero visual */
@@ -527,22 +529,23 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
 <section class="hero">
   <div class="container hero-grid">
     <div>
-      <span class="hero-pill">📌 for opencode · runs entirely on your machine</span>
+      <div class="hero-tag">
+        <span class="pin pin--tag"></span>
+        <span class="hero-tag-text">free AI coding agent · tickets · git · PRs — all local</span>
+      </div>
       <h1>Pin it. Track it. <span>Ship it.</span></h1>
-      <p class="lede">Pinboard turns scattered opencode terminal sessions into a real ticket board — repos, branches, costs, and full conversation history, all in one local dashboard.</p>
+      <p class="lede">Pinboard combines AI coding, tickets, git automation, and cost tracking in one desktop app — free, open source, with any LLM provider you choose. Everything runs on your machine; your code never leaves.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="#quickstart">One-line install</a>
-        <a class="btn btn-ghost" href="https://github.com/anas1412/opencode-pinboard/releases/latest/download/pinboard-install-linux" target="_blank" rel="noopener">
-          <svg class="icon" style="width:15px;height:15px"><use href="#i-terminal"/></svg> Linux binary
-        </a>
-        <a class="btn btn-ghost" href="https://github.com/anas1412/opencode-pinboard/releases/latest/download/pinboard-install-windows.exe" target="_blank" rel="noopener">
-          <svg class="icon" style="width:15px;height:15px"><use href="#i-terminal"/></svg> Windows binary
+        <a class="btn btn-primary" href="#quickstart">Try for free</a>
+        <a class="btn btn-ghost" href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener">
+          <svg class="icon" style="width:16px;height:16px"><use href="#i-github"/></svg> Star us on GitHub
         </a>
       </div>
       <div class="trust-row">
-        <span class="trust-item"><svg class="icon"><use href="#i-terminal"/></svg> Built for opencode</span>
-        <span class="trust-item"><svg class="icon"><use href="#i-lock"/></svg> 100% local</span>
-        <span class="trust-item"><svg class="icon"><use href="#i-bolt"/></svg> Lightweight, no cloud setup</span>
+        <span class="trust-item"><svg class="icon"><use href="#i-terminal"/></svg> Free &amp; open source</span>
+        <span class="trust-item"><svg class="icon"><use href="#i-bolt"/></svg> Any LLM provider</span>
+        <span class="trust-item"><svg class="icon"><use href="#i-kanban"/></svg> Auto-generated branches + PRs</span>
+        <span class="trust-item"><svg class="icon"><use href="#i-lock"/></svg> 100% local &amp; private</span>
       </div>
     </div>
 
@@ -724,22 +727,20 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
 
     <div class="qs-card" data-reveal>
       <div class="qs-tabs">
-        <button class="qs-tab is-active" data-tab="oneline">One-line install</button>
-        <button class="qs-tab" data-tab="manual">Build it yourself</button>
+        <button class="qs-tab is-active" data-tab="linux">Linux</button>
+        <button class="qs-tab" data-tab="windows">Windows</button>
       </div>
 
-      <div class="qs-panel is-active" data-panel="oneline">
-        <div class="code-block" id="code-oneline">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/opencode-pinboard.sh <span class="dim">|</span> bash<button class="copy-btn" data-copy-target="code-oneline" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
-        <p class="qs-note">Needs <code>bun.sh</code> and <a href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener" style="text-decoration:underline">opencode</a> installed first.</p>
+      <div class="qs-panel is-active" data-panel="linux">
+        <div class="code-block" id="code-linux">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh <span class="dim">|</span> bash<button class="copy-btn" data-copy-target="code-linux" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+        <p class="qs-note">One command — installs Pinboard, Bun, and opencode. <a href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener" style="text-decoration:underline">Open source</a> on GitHub.</p>
       </div>
 
-      <div class="qs-panel" data-panel="manual">
-        <div class="code-block" id="code-manual">git clone https://github.com/anas1412/opencode-pinboard.git opencode-pinboard
-cd opencode-pinboard
-bun install
-bun run db:migrate
-bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label="Copy commands"><svg class="icon"><use href="#i-copy"/></svg></button></div>
-        <p class="qs-note">Prefer hot-reload while you work? Run <code>bun run dev</code> from the project folder instead.</p>
+      <div class="qs-panel" data-panel="windows">
+        <a class="btn btn-primary" href="https://github.com/anas1412/opencode-pinboard/releases/latest/download/pinboard-install-windows.exe" target="_blank" rel="noopener" style="width:100%;justify-content:center;padding-block:16px;font-size:1.05rem">
+          <svg class="icon" style="width:18px;height:18px"><use href="#i-terminal"/></svg> Download for Windows
+        </a>
+        <p class="qs-note">Compiled installer — no dependencies needed. <a href="https://github.com/anas1412/opencode-pinboard/releases" target="_blank" rel="noopener" style="text-decoration:underline">Other versions</a> on GitHub.</p>
       </div>
     </div>
   </div>
@@ -860,15 +861,18 @@ bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label=
     tiltCard.addEventListener("mouseleave", onLeave);
   }
 
-  /* OS detection — show only the matching binary button */
+  /* OS detection — activate matching quickstart tab */
   var plat = navigator.platform || "";
   var isWin = plat.indexOf("Win") === 0;
-  var isLinux = plat.indexOf("Linux") === 0 || plat.indexOf("X11") === 0;
-  var btns = document.querySelectorAll(".hero-ctas .btn-ghost");
-  if (btns.length === 2) {
-    if (isWin) { btns[0].style.display = "none"; btns[1].classList.add("btn-detected"); }
-    else if (isLinux) { btns[1].style.display = "none"; btns[0].classList.add("btn-detected"); }
-    else { btns[0].style.display = "none"; btns[1].style.display = "none"; }
+  if (isWin) {
+    var qsTabs = document.querySelectorAll(".qs-tab");
+    var qsPanels = document.querySelectorAll(".qs-panel");
+    if (qsTabs.length === 2) {
+      qsTabs[0].classList.remove("is-active");
+      qsTabs[1].classList.add("is-active");
+      qsPanels[0].classList.remove("is-active");
+      qsPanels[1].classList.add("is-active");
+    }
   }
 })();
 </script>
