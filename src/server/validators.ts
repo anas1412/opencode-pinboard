@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OPENCODE_THEMES } from "../shared/types";
+import { THEMES, OPENCODE_THEMES } from "../shared/types";
 
 export const repoCreateSchema = z.object({
   name: z.string().min(1).max(128),
@@ -39,7 +39,7 @@ export const ticketUpdateSchema = z.object({
 
 export const settingsUpdateSchema = z.object({
   forwardDescription: z.boolean().optional(),
-  theme: z.enum(["amber", "emerald", "violet", "sky"]).optional(),
+  theme: z.enum(THEMES).optional(),
   model: z.string().min(1).optional(),
   ghPath: z.string().optional(),
   ghToken: z.string().optional(),

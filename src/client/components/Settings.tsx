@@ -111,6 +111,10 @@ const THEME_COLORS: Record<Theme, { bg: string; ring: string; label: string }> =
   emerald: { bg: "bg-emerald-500", ring: "ring-emerald-400", label: "Emerald" },
   violet: { bg: "bg-violet-500", ring: "ring-violet-400", label: "Violet" },
   sky: { bg: "bg-sky-500", ring: "ring-sky-400", label: "Sky" },
+  rose: { bg: "bg-rose-500", ring: "ring-rose-400", label: "Rose" },
+  orange: { bg: "bg-orange-500", ring: "ring-orange-400", label: "Orange" },
+  cyan: { bg: "bg-cyan-500", ring: "ring-cyan-400", label: "Cyan" },
+  lime: { bg: "bg-lime-500", ring: "ring-lime-400", label: "Lime" },
 };
 
 function ThemePicker({ value, onChange }: { value: Theme; onChange: (t: Theme) => void }) {
@@ -155,6 +159,17 @@ function SectionCard({ icon, title, description, children }: {
   );
 }
 
+// ─── Tab definitions ──────────────────────────────────────────────────
+
+type SettingsTab = "general" | "opencode" | "github" | "repos";
+
+const TABS: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  { id: "general",   label: "General",    icon: <Palette size={14} /> },
+  { id: "opencode",  label: "OpenCode",   icon: <Bot size={14} /> },
+  { id: "github",    label: "Version Control", icon: <GitBranch size={14} /> },
+  { id: "repos",     label: "Repositories", icon: <Settings2 size={14} /> },
+];
+
 // ─── Main Settings page ──────────────────────────────────────────────
 
 export default function Settings() {
@@ -163,6 +178,9 @@ export default function Settings() {
   const { data: repos, isLoading: reposLoading } = useRepos();
   const setTheme = useAppStore((s) => s.setTheme);
   const { ghUser, ghPhase } = useAppStore();
+
+  // ── Active tab ─────────────────────────────────────────────────────
+  const [tab, setTab] = useState<SettingsTab>("general");
 
   // ── Load settings ──────────────────────────────────────────────────
   const { data: settings, isLoading: settingsLoading } = useQuery({
@@ -289,207 +307,238 @@ export default function Settings() {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Settings2 size={16} className="text-zinc-400" />
-          <h2 className="text-lg font-semibold text-white">Settings</h2>
+      <div className="max-w-2xl mx-auto">
+        {/* ── Header ────────────────────────────────────────────────── */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Settings2 size={16} className="text-zinc-400" />
+            <h2 className="text-lg font-semibold text-white">Settings</h2>
+          </div>
+          <p className="text-sm text-zinc-500">
+            Configure OpenTack and opencode integration.
+          </p>
         </div>
-        <p className="text-sm text-zinc-500">
-          Configure OpenTack and default model for opencode.
-        </p>
-      </div>
 
-      {isLoading ? (
-        <p className="text-sm text-zinc-600">Loading settings…</p>
-      ) : (
-        <>
-          {/* ── Section 1: Prompting ─────────────────────────────────── */}
-          <SectionCard
-            icon={<Send size={14} />}
-            title="Prompting"
-            description="When enabled, the ticket description is used to generate an improved prompt for opencode when starting a new session."
-          >
-            <label className="flex items-center justify-between cursor-pointer group">
-              <span className="text-sm text-zinc-300 group-hover:text-zinc-200 transition-colors">
-                Improve initial prompt with AI
-              </span>
-              <button
-                onClick={handleToggleForward}
-                disabled={saveSettings.isPending}
-                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
-                  forward ? "bg-[var(--accent)]" : "bg-zinc-700"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${
-                    forward ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </label>
-          </SectionCard>
+        {/* ── Tab bar ───────────────────────────────────────────────── */}
+        <div className="flex gap-1 mb-6 border-b border-zinc-800">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[1px] ${
+                tab === t.id
+                  ? "text-white border-[var(--accent)]"
+                  : "text-zinc-500 border-transparent hover:text-zinc-300 hover:border-zinc-600"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-          {/* ── Section 2: Appearance ───────────────────────────────── */}
-          <SectionCard
-            icon={<Palette size={14} />}
-            title="Appearance"
-            description="Choose your accent color theme."
-          >
-            <ThemePicker value={theme} onChange={handleThemeChange} />
-          </SectionCard>
+        {/* ── Content ───────────────────────────────────────────────── */}
+        {isLoading ? (
+          <p className="text-sm text-zinc-600">Loading settings…</p>
+        ) : (
+          <div className="space-y-6">
+            {/* ── Tab: General ──────────────────────────────────────── */}
+            {tab === "general" && (
+              <>
+                <SectionCard
+                  icon={<Send size={14} />}
+                  title="Prompting"
+                  description="When enabled, the ticket description is used to generate an improved prompt for opencode when starting a new session."
+                >
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <span className="text-sm text-zinc-300 group-hover:text-zinc-200 transition-colors">
+                      Improve initial prompt with AI
+                    </span>
+                    <button
+                      onClick={handleToggleForward}
+                      disabled={saveSettings.isPending}
+                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
+                        forward ? "bg-[var(--accent)]" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${
+                          forward ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </label>
+                </SectionCard>
 
-          {/* ── Section 3: OpenCode Theme ────────────────────────────── */}
-          <SectionCard
-            icon={<Paintbrush size={14} />}
-            title="OpenCode Theme"
-            description="Theme for the opencode web UI (iframe). Saved to ~/.config/opencode/tui.json"
-          >
-            <div className="flex items-center gap-2">
-              <select
-                value={ocTheme}
-                onChange={handleOcThemeChange}
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
-              >
-                {OPENCODE_THEMES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleOcThemeSave}
-                disabled={saveOcTheme.isPending || !ocThemeDirty}
-                className="btn-primary !text-xs"
-              >
-                <Save size={12} />
-                {saveOcTheme.isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </SectionCard>
+                <SectionCard
+                  icon={<Palette size={14} />}
+                  title="Appearance"
+                  description="Choose your accent color theme."
+                >
+                  <ThemePicker value={theme} onChange={handleThemeChange} />
+                </SectionCard>
+              </>
+            )}
 
-          {/* ── Section 4: Model ────────────────────────────────────── */}
-          <SectionCard
-            icon={<Cpu size={14} />}
-            title="Default Model"
-            description="Default model for new opencode sessions. Saved to opencode.json."
-          >
-            <div className="flex items-center gap-2">
-              <input
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600 font-mono"
-                placeholder="opencode/big-pickle"
-                value={model}
-                onChange={(e) => { setModel(e.target.value); setModelDirty(true); }}
-              />
-              <button
-                onClick={handleModelSave}
-                disabled={saveModel.isPending || !modelDirty}
-                className="btn-primary !text-xs"
-              >
-                <Save size={12} />
-                {saveModel.isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-            <p className="text-xs text-zinc-600 mt-2">
-              Format: <code className="text-zinc-500">providerID/modelID</code>
-            </p>
-          </SectionCard>
+            {/* ── Tab: OpenCode ─────────────────────────────────────── */}
+            {tab === "opencode" && (
+              <>
+                <SectionCard
+                  icon={<Cpu size={14} />}
+                  title="Default Model"
+                  description="Default model for new opencode sessions. Saved to opencode.json."
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600 font-mono"
+                      placeholder="opencode/big-pickle"
+                      value={model}
+                      onChange={(e) => { setModel(e.target.value); setModelDirty(true); }}
+                    />
+                    <button
+                      onClick={handleModelSave}
+                      disabled={saveModel.isPending || !modelDirty}
+                      className="btn-primary !text-xs"
+                    >
+                      <Save size={12} />
+                      {saveModel.isPending ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-600 mt-2">
+                    Format: <code className="text-zinc-500">providerID/modelID</code>
+                  </p>
+                </SectionCard>
 
-          {/* ── Section 4: Default Agent ────────────────────────────── */}
-          <SectionCard
-            icon={<Bot size={14} />}
-            title="Default Agent"
-            description="Default opencode agent for new sessions. Saved to opencode.json."
-          >
-            <div className="flex items-center gap-2">
-              <select
-                value={defaultAgent}
-                onChange={handleAgentChange}
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
-              >
-                <option value="">Default (opencode decides)</option>
-                {agents.map((a) => (
-                  <option key={a.name} value={a.name}>
-                    {a.name}{a.mode ? ` (${a.mode})` : ""}{a.description ? ` — ${a.description}` : ""}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleAgentSave}
-                disabled={saveAgent.isPending || !agentDirty}
-                className="btn-primary !text-xs"
-              >
-                <Save size={12} />
-                {saveAgent.isPending ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </SectionCard>
+                <SectionCard
+                  icon={<Bot size={14} />}
+                  title="Default Agent"
+                  description="Default opencode agent for new sessions. Saved to opencode.json."
+                >
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={defaultAgent}
+                      onChange={handleAgentChange}
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
+                    >
+                      <option value="">Default (opencode decides)</option>
+                      {agents.map((a) => (
+                        <option key={a.name} value={a.name}>
+                          {a.name}{a.mode ? ` (${a.mode})` : ""}{a.description ? ` — ${a.description}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleAgentSave}
+                      disabled={saveAgent.isPending || !agentDirty}
+                      className="btn-primary !text-xs"
+                    >
+                      <Save size={12} />
+                      {saveAgent.isPending ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </SectionCard>
 
-          {/* ── Section 5: GitHub (summary → dedicated page) ── */}
-          <SectionCard
-            icon={<GitBranch size={14} />}
-            title="GitHub"
-            description="Connect your GitHub account to create PRs and manage repositories."
-          >
-            <div className="flex items-center justify-between">
-              {ghPhase === "authed" && ghUser ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
-                    {ghUser.avatarUrl ? (
-                      <img src={ghUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                <SectionCard
+                  icon={<Paintbrush size={14} />}
+                  title="OpenCode Theme"
+                  description="Theme for the opencode web UI (iframe). Saved to ~/.config/opencode/tui.json"
+                >
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={ocTheme}
+                      onChange={handleOcThemeChange}
+                      className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600 appearance-none cursor-pointer"
+                    >
+                      {OPENCODE_THEMES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleOcThemeSave}
+                      disabled={saveOcTheme.isPending || !ocThemeDirty}
+                      className="btn-primary !text-xs"
+                    >
+                      <Save size={12} />
+                      {saveOcTheme.isPending ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </SectionCard>
+              </>
+            )}
+
+            {/* ── Tab: GitHub ───────────────────────────────────────── */}
+            {tab === "github" && (
+              <>
+                <SectionCard
+                  icon={<GitBranch size={14} />}
+                  title="GitHub Connection"
+                  description="Connect your GitHub account to create PRs and manage repositories."
+                >
+                  <div className="flex items-center justify-between">
+                    {ghPhase === "authed" && ghUser ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                          {ghUser.avatarUrl ? (
+                            <img src={ghUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[11px] font-medium text-zinc-400">{ghUser.login[0].toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-300">{ghUser.name || ghUser.login}</p>
+                          <p className="text-xs text-zinc-600">{ghUser.login}</p>
+                        </div>
+                        <CheckCircle size={14} className="text-emerald-400 ml-2" />
+                      </div>
+                    ) : ghPhase === "checking" || ghPhase === null ? (
+                      <div className="flex items-center gap-2 text-sm text-zinc-500">
+                        <Loader2 size={14} className="animate-spin" />
+                        Checking...
+                      </div>
                     ) : (
-                      <span className="text-[11px] font-medium text-zinc-400">{ghUser.login[0].toUpperCase()}</span>
+                      <p className="text-sm text-zinc-500">Not connected</p>
                     )}
+
+                    <button
+                      onClick={() => navigate({ to: "/settings/github" })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                    >
+                      Manage
+                      <ExternalLink size={11} />
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-sm text-zinc-300">{ghUser.name || ghUser.login}</p>
-                    <p className="text-xs text-zinc-600">{ghUser.login}</p>
+                </SectionCard>
+              </>
+            )}
+
+            {/* ── Tab: Repositories ─────────────────────────────────── */}
+            {tab === "repos" && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-zinc-400"><Settings2 size={14} /></span>
+                  <h3 className="text-sm font-medium text-white">Repository Environment</h3>
+                </div>
+
+                {reposLoading ? (
+                  <p className="text-sm text-zinc-600">Loading repos…</p>
+                ) : repos && repos.length > 0 ? (
+                  <div className="space-y-4">
+                    {repos.map((repo) => (
+                      <RepoSettingsCard key={repo.id} repo={repo} />
+                    ))}
                   </div>
-                  <CheckCircle size={14} className="text-emerald-400 ml-2" />
-                </div>
-              ) : ghPhase === "checking" || ghPhase === null ? (
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
-                  <Loader2 size={14} className="animate-spin" />
-                  Checking...
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500">Not connected</p>
-              )}
-
-              <button
-                onClick={() => navigate({ to: "/settings/github" })}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              >
-                Manage
-                <ExternalLink size={11} />
-              </button>
-            </div>
-          </SectionCard>
-
-          {/* ── Section 6: Repo env vars ────────────────────────────── */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-zinc-400"><Settings2 size={14} /></span>
-              <h3 className="text-sm font-medium text-white">Repository Environment</h3>
-            </div>
-
-            {reposLoading ? (
-              <p className="text-sm text-zinc-600">Loading repos…</p>
-            ) : repos && repos.length > 0 ? (
-              <div className="space-y-4">
-                {repos.map((repo) => (
-                  <RepoSettingsCard key={repo.id} repo={repo} />
-                ))}
+                ) : (
+                  <p className="text-sm text-zinc-600 italic">
+                    No repos added yet. Add one from the sidebar.
+                  </p>
+                )}
               </div>
-            ) : (
-              <p className="text-sm text-zinc-600 italic">
-                No repos added yet. Add one from the sidebar.
-              </p>
             )}
           </div>
-        </>
-      )}
-    </div>
+        )}
+      </div>
     </div>
   );
 }

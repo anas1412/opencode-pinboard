@@ -156,7 +156,7 @@ export interface CostSummary {
 
 // ─── Settings ──────────────────────────────────────────────────────────
 
-export const THEMES = ["amber", "emerald", "violet", "sky"] as const;
+export const THEMES = ["amber", "emerald", "violet", "sky", "rose", "orange", "cyan", "lime"] as const;
 export type Theme = (typeof THEMES)[number];
 
 export interface Settings {

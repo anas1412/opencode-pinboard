@@ -42,6 +42,26 @@
   --accent-subtle: rgba(14, 165, 233, 0.1); --accent-subtler: rgba(14, 165, 233, 0.05);
   --accent-glow-rgb: 14, 165, 233; --accent-ring: rgba(14, 165, 233, 0.3); --accent-border: rgba(14, 165, 233, 0.4);
 }
+[data-theme="rose"] {
+  --accent: #e11d48; --accent-hover: #f43f5e; --accent-text: #fda4af;
+  --accent-subtle: rgba(244, 63, 94, 0.1); --accent-subtler: rgba(244, 63, 94, 0.05);
+  --accent-glow-rgb: 244, 63, 94; --accent-ring: rgba(244, 63, 94, 0.3); --accent-border: rgba(244, 63, 94, 0.4);
+}
+[data-theme="orange"] {
+  --accent: #ea580c; --accent-hover: #f97316; --accent-text: #fdba74;
+  --accent-subtle: rgba(249, 115, 22, 0.1); --accent-subtler: rgba(249, 115, 22, 0.05);
+  --accent-glow-rgb: 249, 115, 22; --accent-ring: rgba(249, 115, 22, 0.3); --accent-border: rgba(249, 115, 22, 0.4);
+}
+[data-theme="cyan"] {
+  --accent: #0891b2; --accent-hover: #06b6d4; --accent-text: #67e8f9;
+  --accent-subtle: rgba(6, 182, 212, 0.1); --accent-subtler: rgba(6, 182, 212, 0.05);
+  --accent-glow-rgb: 6, 182, 212; --accent-ring: rgba(6, 182, 212, 0.3); --accent-border: rgba(6, 182, 212, 0.4);
+}
+[data-theme="lime"] {
+  --accent: #65a30d; --accent-hover: #84cc16; --accent-text: #bef264;
+  --accent-subtle: rgba(132, 204, 22, 0.1); --accent-subtler: rgba(132, 204, 22, 0.05);
+  --accent-glow-rgb: 132, 204, 22; --accent-ring: rgba(132, 204, 22, 0.3); --accent-border: rgba(132, 204, 22, 0.4);
+}
 
 /* ─── Pin element — signature motif from landing page ───────── */
 .pin-sm {
