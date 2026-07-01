@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenTack — Track your opencode work like a pro</title>
-<meta name="description" content="OpenTack turns scattered opencode terminal sessions into a real local ticket board. Repos, branches, costs, and full conversation history — nothing leaves your machine.">
+<title>Pinboard — Pin your opencode work like a pro</title>
+<meta name="description" content="Pinboard turns scattered opencode terminal sessions into a real local ticket board. Repos, branches, costs, and full conversation history — nothing leaves your machine.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext x='50' y='72' font-size='72' text-anchor='middle'%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -495,13 +495,13 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
      ============================================================ -->
 <header class="nav" id="nav">
   <div class="container nav-inner">
-    <a href="#top" class="brand"><span class="brand-mark">📌</span>Open<b>Tack</b></a>
+    <a href="#top" class="brand"><span class="brand-mark">📌</span>Pin<b>board</b></a>
     <nav class="nav-links">
       <a href="#how">How it works</a>
       <a href="#views">Views</a>
     </nav>
     <div class="nav-actions">
-      <a class="btn btn-ghost btn-sm" href="https://github.com/anas1412/opentack" target="_blank" rel="noopener">
+      <a class="btn btn-ghost btn-sm" href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener">
         <svg class="icon" style="width:15px;height:15px"><use href="#i-github"/></svg> GitHub
       </a>
       <a class="btn btn-primary btn-sm" href="#quickstart">Install</a>
@@ -519,10 +519,10 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
     <div>
       <span class="hero-pill">📌 for opencode · runs entirely on your machine</span>
       <h1>Pin it. Track it. <span>Ship it.</span></h1>
-      <p class="lede">OpenTack turns scattered opencode terminal sessions into a real ticket board — repos, branches, costs, and full conversation history, all in one local dashboard.</p>
+      <p class="lede">Pinboard turns scattered opencode terminal sessions into a real ticket board — repos, branches, costs, and full conversation history, all in one local dashboard.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="#quickstart">Get the install command</a>
-        <a class="btn btn-ghost" href="https://github.com/anas1412/opentack" target="_blank" rel="noopener">
+        <a class="btn btn-ghost" href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener">
           <svg class="icon" style="width:16px;height:16px"><use href="#i-github"/></svg> View source
         </a>
       </div>
@@ -566,7 +566,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
       </div>
     </div>
 
-    <p class="why-resolve" data-reveal>opencode remembers the code. <b>OpenTack remembers the work.</b></p>
+    <p class="why-resolve" data-reveal>opencode remembers the code. <b>Pinboard remembers the work.</b></p>
   </div>
 </section>
 
@@ -587,7 +587,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
         <div class="step-num">01</div>
         <div class="step-content">
           <h3>Add a repo</h3>
-          <p>Point OpenTack at a folder on disk, or drop in a GitHub URL and let it clone one for you.</p>
+          <p>Point Pinboard at a folder on disk, or drop in a GitHub URL and let it clone one for you.</p>
         </div>
       </div>
 
@@ -595,7 +595,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
         <div class="step-num">02</div>
         <div class="step-content">
           <h3>Open a ticket</h3>
-          <p>Add a title, description, priority, and category. OpenTack generates a feature branch automatically.</p>
+          <p>Add a title, description, priority, and category. Pinboard generates a feature branch automatically.</p>
         </div>
       </div>
 
@@ -716,13 +716,13 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
       </div>
 
       <div class="qs-panel is-active" data-panel="oneline">
-        <div class="code-block" id="code-oneline">curl -fsSL https://raw.githubusercontent.com/anas1412/opentack/main/opentack.sh <span class="dim">|</span> bash<button class="copy-btn" data-copy-target="code-oneline" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+        <div class="code-block" id="code-oneline">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/opencode-pinboard.sh <span class="dim">|</span> bash<button class="copy-btn" data-copy-target="code-oneline" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
         <p class="qs-note">Needs <code>bun.sh</code> and <a href="https://github.com/anomalyco/opencode" target="_blank" rel="noopener" style="text-decoration:underline">opencode</a> installed first.</p>
       </div>
 
       <div class="qs-panel" data-panel="manual">
-        <div class="code-block" id="code-manual">git clone https://github.com/anas1412/opentack.git
-cd opentack
+        <div class="code-block" id="code-manual">git clone https://github.com/anas1412/opencode-pinboard.git opencode-pinboard
+cd opencode-pinboard
 bun install
 bun run db:migrate
 bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label="Copy commands"><svg class="icon"><use href="#i-copy"/></svg></button></div>
@@ -741,10 +741,10 @@ bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label=
       <h2>Your sessions already have a story.<br>Give them a board.</h2>
       <p>Free, open source, and yours to run.</p>
       <div class="cta-actions">
-        <a class="btn btn-primary" href="https://github.com/anas1412/opentack" target="_blank" rel="noopener">
+        <a class="btn btn-primary" href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener">
           <svg class="icon" style="width:16px;height:16px"><use href="#i-github"/></svg> View on GitHub
         </a>
-        <a class="btn btn-ghost" href="https://github.com/anas1412/opentack/releases" target="_blank" rel="noopener">Releases <svg class="icon" style="width:15px;height:15px"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/anas1412/opencode-pinboard/releases" target="_blank" rel="noopener">Releases <svg class="icon" style="width:15px;height:15px"><use href="#i-arrow"/></svg></a>
       </div>
       <span class="cta-license">MIT licensed</span>
     </div>
@@ -755,7 +755,7 @@ bun run build<button class="copy-btn" data-copy-target="code-manual" aria-label=
 
 <footer>
   <div class="container foot-inner">
-    <span class="foot-brand">📌 OpenTack</span>
+    <span class="foot-brand">📌 Pinboard</span>
     <span class="foot-note">Not affiliated with OpenCode. Built by the community, not the OpenCode team.</span>
   </div>
 </footer>
