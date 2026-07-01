@@ -23,7 +23,7 @@ export function parseModel(modelStr: string): OpencodeModel | undefined {
  * @param repoPath - absolute path to the repo
  * @param title - session title
  * @param retries - retry on failure (default 1 = no retry, delay 500ms between attempts)
- * @param model - model to use (from OpenTack settings). If omitted, no model is sent.
+ * @param model - model to use (from Pinboard settings). If omitted, no model is sent.
  * @param agent - agent to use (e.g. "plan", "build"). If omitted, no agent is sent.
  * @returns opencode session ID
  */

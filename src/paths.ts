@@ -31,31 +31,31 @@ export function getOpencodeDataAgentsDir(): string {
   return join(getOpencodeDataDir(), "agents");
 }
 
-// ─── OpenTack own paths ────────────────────────────────────────────
+// ─── Pinboard own paths ────────────────────────────────────────────
 
-/** OpenTack data directory (DB, repos, etc.) */
-export function getOpenTackDataDir(): string {
-  return process.env.OPENTACK_DATA_DIR || join(homedir(), ".opentack");
+/** Pinboard data directory (DB, repos, etc.) */
+export function getPinboardDataDir(): string {
+  return process.env.PINBOARD_DATA_DIR || join(homedir(), ".pinboard");
 }
 
-/** OpenTack SQLite database path */
-export function getOpenTackDbPath(): string {
-  return process.env.OPENTACK_DB_PATH || join(getOpenTackDataDir(), "db.sqlite");
+/** Pinboard SQLite database path */
+export function getPinboardDbPath(): string {
+  return process.env.PINBOARD_DB_PATH || join(getPinboardDataDir(), "db.sqlite");
 }
 
-/** OpenTack cloned repos directory */
-export function getOpenTackReposDir(): string {
-  return join(getOpenTackDataDir(), "repos");
+/** Pinboard cloned repos directory */
+export function getPinboardReposDir(): string {
+  return join(getPinboardDataDir(), "repos");
 }
 
-/** OpenTack git worktrees root directory */
-export function getOpenTackWorktreesDir(): string {
-  return join(homedir(), "opentack-worktrees");
+/** Pinboard git worktrees root directory */
+export function getPinboardWorktreesDir(): string {
+  return join(homedir(), "pinboard-worktrees");
 }
 
-/** OpenTack install directory (source code) */
-export function getOpenTackInstallDir(): string {
-  return process.env.OPENTACK_DIR || join(homedir(), "opentack");
+/** Pinboard install directory (source code) */
+export function getPinboardInstallDir(): string {
+  return process.env.PINBOARD_DIR || join(homedir(), ".pinboard");
 }
 
 export function getBunDir(): string {

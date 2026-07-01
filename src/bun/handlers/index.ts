@@ -9,9 +9,9 @@ import {
   getOpencodeConfigPath,
   getOpencodeTuiPath,
   getOpencodeDataAgentsDir,
-  getOpenTackDataDir,
-  getOpenTackReposDir,
-  getOpenTackWorktreesDir,
+  getPinboardDataDir,
+  getPinboardReposDir,
+  getPinboardWorktreesDir,
 } from "../../paths"
 import path from "path"
 import { z } from "zod"
@@ -87,10 +87,10 @@ function toJsonField(val: unknown): string {
 const OPENCONFIG_DIR = getOpencodeConfigDir()
 const OPENCONFIG_PATH = getOpencodeConfigPath()
 const TUI_CONFIG_PATH = getOpencodeTuiPath()
-const OPENTACK_DIR = getOpenTackDataDir()
-const OPENTACK_REPOS_DIR = getOpenTackReposDir()
+const PINBOARD_DIR = getPinboardDataDir()
+const PINBOARD_REPOS_DIR = getPinboardReposDir()
 
-function getOpenTackDb() {
+function getPinboardDb() {
   return db
 }
 
@@ -200,11 +200,11 @@ export async function deleteRepo(params: { id: string }): Promise<void> {
 export async function cloneRepo(params: { gitUrl: string; name?: string }): Promise<Repo> {
   const url = new URL(params.gitUrl)
   const repoName = params.name || path.basename(url.pathname, ".git")
-  const dest = `${OPENTACK_REPOS_DIR}/${repoName}`
+  const dest = `${PINBOARD_REPOS_DIR}/${repoName}`
 
   if (existsSync(dest)) throw new Error("Repo already exists at " + dest)
 
-  mkdirSync(OPENTACK_REPOS_DIR, { recursive: true })
+  mkdirSync(PINBOARD_REPOS_DIR, { recursive: true })
 
   try {
     execSync(`git clone "${params.gitUrl}" "${dest}"`, {
@@ -969,20 +969,20 @@ export async function getChat(params: { id: string }): Promise<Session> {
 
 // ─── Costs ─────────────────────────────────────────────────────────────
 
-/** Find a port for any active opencode server by scanning OpenTack's sessions table. */
+/** Find a port for any active opencode server by scanning Pinboard's sessions table. */
 export async function costSummary(): Promise<CostSummary> {
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
 
   // Global totals from opencode DB (all sessions, all repos)
   const global = aggregateOpencodeSessionsSince(weekAgo)
 
-  // Per-repo breakdown from opencode DB directory field (covers ALL sessions, not just OpenTack-tracked)
+  // Per-repo breakdown from opencode DB directory field (covers ALL sessions, not just Pinboard-tracked)
   const ocSessions = queryOpencodeSessionsSince(weekAgo)
 
-  // Map opencode directories to OpenTack repos
+  // Map opencode directories to Pinboard repos
   const allRepos = await db.select().from(schema.repos)
   const sortedRepos = [...allRepos].sort((a, b) => b.localPath.length - a.localPath.length) // longest first for prefix match
-  const worktreesRoot = getOpenTackWorktreesDir()
+  const worktreesRoot = getPinboardWorktreesDir()
   function repoForDir(dir: string | null): { id: string; name: string } | undefined {
     if (!dir) return undefined
     return sortedRepos.find((r) => dir.startsWith(r.localPath) || dir.startsWith(worktreesRoot + "/" + r.name + "/"))
@@ -999,7 +999,7 @@ export async function costSummary(): Promise<CostSummary> {
     perRepoMap.set(repo.id, existing)
   }
 
-  // ticketCount from OpenTack sessions (still useful for ticket tracking)
+  // ticketCount from Pinboard sessions (still useful for ticket tracking)
   const ticketSessions = await db
     .select({ ticketId: schema.sessions.ticketId })
     .from(schema.sessions)
@@ -1076,7 +1076,7 @@ export async function costPerModel(params: { startDate?: string; endDate?: strin
   const startMs = params.startDate ? new Date(params.startDate).getTime() : 0
   const endMs = params.endDate ? new Date(params.endDate).getTime() : Infinity
 
-  // Single source of truth: opencode DB. No OpenTack tables touched.
+  // Single source of truth: opencode DB. No Pinboard tables touched.
   const allSessions = queryOpencodeSessionsSince(startMs)
 
   const perModel = new Map<string, { costUsd: number; tokens: number; sessionCount: number }>()
@@ -1534,7 +1534,7 @@ export async function createWorktree(params: { ticketId: string }): Promise<void
   const repo = await db.select().from(schema.repos).where(eq(schema.repos.id, ticket[0].repoId)).limit(1)
   if (!repo[0]) throw new Error("Repo not found")
 
-  const worktreeDir = getOpenTackWorktreesDir()
+  const worktreeDir = getPinboardWorktreesDir()
   const worktreePath = `${worktreeDir}/${repo[0].name}/${ticket[0].branch}`
 
   // Ensure branch exists
@@ -1647,7 +1647,7 @@ export async function checkUpdates(): Promise<CheckUpdatesResponse> {
 
   try {
     // HEAD request without following redirects — read `Location` for latest tag
-    const res = await fetch("https://github.com/anas1412/opentack/releases/latest", {
+    const res = await fetch("https://github.com/anas1412/opencode-pinboard/releases/latest", {
       method: "HEAD",
       redirect: "manual",
       signal: AbortSignal.timeout(10000),
@@ -1668,8 +1668,8 @@ export async function downloadUpdate(): Promise<DownloadUpdateResponse> {
     return { success: false, error: "Updates not supported on this platform" }
   }
 
-  const filename = platform === "win32" ? "opentack-install-windows.exe" : "opentack-install-linux"
-  const url = `https://github.com/anas1412/opentack/releases/latest/download/${filename}`
+  const filename = platform === "win32" ? "pinboard-install-windows.exe" : "pinboard-install-linux"
+  const url = `https://github.com/anas1412/opencode-pinboard/releases/latest/download/${filename}`
   const installerPath = path.join(tmpdir(), filename)
 
   try {

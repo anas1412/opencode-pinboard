@@ -29,8 +29,8 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opentack-install-${{ matrix.os }}
-          path: dist/opentack-install*
+          name: pinboard-install-${{ matrix.os }}
+          path: dist/pinboard-install*
 
   release:
     name: Create release
@@ -42,14 +42,14 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: opentack-install-*
+          pattern: pinboard-install-*
           merge-multiple: true
 
       - name: Rename installer binaries with platform suffix
         shell: bash
         run: |
-          mv opentack-install      opentack-install-linux   || true
-          mv opentack-install.exe  opentack-install-windows.exe || true
+          mv pinboard-install      pinboard-install-linux   || true
+          mv pinboard-install.exe  pinboard-install-windows.exe || true
 
       - name: Clean stale release assets (from failed prior runs)
         shell: bash
@@ -68,5 +68,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            opentack-install-*
+            pinboard-install-*
           generate_release_notes: true

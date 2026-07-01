@@ -2,7 +2,7 @@
  * Direct SQLite queries against the opencode session database.
  *
  * Provides complete token/cost data without requiring a running SDK server.
- * The opencode DB always has the full picture — OpenTack's own sessions table
+ * The opencode DB always has the full picture — Pinboard's own sessions table
  * only tracks sessions it created itself.
  */
 import { Database } from "bun:sqlite";
@@ -62,7 +62,7 @@ export interface DailyCostEntry {
 
 /**
  * Build daily aggregation directly from the opencode session DB.
- * This includes ALL opencode sessions, not just OpenTack-tracked ones.
+ * This includes ALL opencode sessions, not just Pinboard-tracked ones.
  */
 export function dailyCostHistory(since: number): DailyCostEntry[] {
   const rows = queryOpencodeSessionsSince(since);
@@ -117,7 +117,7 @@ interface SessionCost {
 /**
  * Return a Map<opencodeSessionId, {costUsd, totalTokens}> for ALL sessions
  * in the opencode DB (no time filter). Use when you need to enrich a set
- * of OpenTack sessions that may span any time range.
+ * of Pinboard sessions that may span any time range.
  */
 export function getAllSessionCostsMap(): Map<string, SessionCost> {
   return buildCostMap(null);

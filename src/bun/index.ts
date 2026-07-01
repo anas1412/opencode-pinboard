@@ -9,11 +9,11 @@ import { startSdkCostWatcher } from "../server/sdk-cost-watcher"
 import { sseEmitter, SSE_EVENT } from "../server/sse"
 import type { SseEvent } from "../server/sse"
 import * as handlers from "./handlers"
-import type { OpenTackRPC } from "../shared/rpc"
+import type { PinboardRPC } from "../shared/rpc"
 
 // ─── RPC Setup ───────────────────────────────────────────────────────────
 
-const rpc = BrowserView.defineRPC<OpenTackRPC>({
+const rpc = BrowserView.defineRPC<PinboardRPC>({
   maxRequestTime: 60000,
   handlers: {
     requests: {
@@ -133,7 +133,7 @@ async function recoverOrphanedSessions() {
 
 async function main() {
   // Run DB migrations
-  console.log("[opentack] Running database migrations...")
+  console.log("[pinboard] Running database migrations...")
   migrate(db, { migrationsFolder: path.resolve(import.meta.dir, "../drizzle") })
 
   // Recover orphaned sessions
@@ -145,7 +145,7 @@ async function main() {
 
   // Create main window
   const win = new BrowserWindow({
-    title: "OpenTack",
+    title: "Pinboard",
     frame: {
       x: 0,
       y: 0,
@@ -198,13 +198,13 @@ async function main() {
 
   // Clean up on quit
   Electrobun.events.on("before-quit", async () => {
-    console.log("[opentack] Shutting down...")
+    console.log("[pinboard] Shutting down...")
     sseEmitter.off(SSE_EVENT, sseBridge)
     stopAll()
   })
 }
 
 main().catch((err) => {
-  console.error("[opentack] Fatal error:", err)
+  console.error("[pinboard] Fatal error:", err)
   process.exit(1)
 })

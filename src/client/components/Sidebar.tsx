@@ -87,7 +87,7 @@ export default function Sidebar() {
           className="flex items-center gap-2 text-lg font-bold tracking-tight text-white transition-colors duration-150 hover:[color:var(--accent-text)]"
         >
           <Pin size={18} className="-rotate-45" />
-          OpenTack
+          Pinboard
         </button>
       </div>
 
@@ -311,7 +311,7 @@ export default function Sidebar() {
                   Download Update
                 </button>
                 <a
-                  href={`https://github.com/anas1412/opentack/releases/${updateStatus.data.latestVersion}`}
+                  href={`https://github.com/anas1412/opencode-pinboard/releases/${updateStatus.data.latestVersion}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md text-xs text-zinc-500 hover:text-zinc-300 transition-colors"

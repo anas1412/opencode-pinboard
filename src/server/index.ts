@@ -93,7 +93,7 @@ async function buildApp() {
 }
 
 /**
- * On startup, recover orphaned sessions that were left running when OpenTack crashed.
+ * On startup, recover orphaned sessions that were left running when Pinboard crashed.
  * Scans sessions with no endedAt, checks if the original PID+port is still alive,
  * and re-registers healthy ones in the in-memory server map.
  *
@@ -135,7 +135,7 @@ export async function startServer(port: number = 3000) {
   _app = app;
 
   await app.listen({ port, host: "127.0.0.1" });
-  app.log.info(`OpenTack running at http://localhost:${port}`);
+  app.log.info(`Pinboard running at http://localhost:${port}`);
 
   // Start background cost watchers:
   //   startSdkCostWatcher — fetches cost data from opencode via SDK

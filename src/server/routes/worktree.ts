@@ -5,9 +5,9 @@ import { eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "../../db";
 import { stopSessionServer } from "../opencode-manager";
-import { getOpenTackWorktreesDir } from "../../paths";
+import { getPinboardWorktreesDir } from "../../paths";
 
-const WORKTREES_ROOT = getOpenTackWorktreesDir();
+const WORKTREES_ROOT = getPinboardWorktreesDir();
 
 /** Cross-platform git runner — no shell, works on Windows. */
 function git(args: string[], opts?: { cwd?: string }): { stdout: string; exitCode: number } {

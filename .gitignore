@@ -5,5 +5,5 @@ build/
 .env
 *.log
 .tmp/
-OpenTack-PRD.md
+Pinboard-PRD.md
 

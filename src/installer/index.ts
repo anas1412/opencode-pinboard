@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 /**
- * OpenTack Installer — single binary executable.
+ * Pinboard Installer — single binary executable.
  *
  * Build:
- *   bun build --compile --target=bun --outfile=dist/opentack-install ./src/installer/index.ts
+ *   bun build --compile --target=bun --outfile=dist/pinboard-install ./src/installer/index.ts
  *
  * What it does:
  *   1. Checks for git (must be pre-installed)
  *   2. Installs bun silently if missing
  *   3. Installs opencode silently if missing
  *   4. Installs GStreamer plugins (Linux only — WebKit media backend)
- *   5. Clones the OpenTack repo
+ *   5. Clones the Pinboard repo
  *   6. Runs bun install, DB migrations, and frontend build
  */
 
@@ -22,11 +22,11 @@ import path from "path"
 // ── Config ────────────────────────────────────────────────────────
 
 const PKG_VERSION = "0.1.0"
-const REPO = "anas1412/opentack"
+const REPO = "anas1412/opencode-pinboard"
 const BRANCH = "main"
 const HOME = homedir()
-const INSTALL_DIR = Bun.env.OPENTACK_DIR || path.join(HOME, "opentack")
-const DATA_DIR = Bun.env.OPENTACK_DATA_DIR || path.join(HOME, ".opentack")
+const INSTALL_DIR = Bun.env.PINBOARD_DIR || path.join(HOME, ".pinboard")
+const DATA_DIR = Bun.env.PINBOARD_DATA_DIR || path.join(HOME, ".pinboard")
 const BUN_INSTALL_DIR = path.join(HOME, ".bun")
 const OPENCODE_INSTALL_DIR = path.join(HOME, ".opencode")
 
@@ -231,12 +231,12 @@ async function ensureGStreamer(): Promise<void> {
   }
 }
 
-async function installOpenTack(): Promise<void> {
+async function installPinboard(): Promise<void> {
   const dir = INSTALL_DIR
 
   if (await Bun.file(path.join(dir, ".git")).exists()) {
     warn(`${dir} already exists and is a git repository.`)
-    console.log("  To update, run: opentack-update")
+    console.log("  To update, run: pinboard-update")
     const rmCmd = process.platform === "win32" ? "rmdir /s" : "rm -rf"
     console.log(`  To reinstall, remove it first: ${rmCmd} ${dir}`)
     return
@@ -251,7 +251,7 @@ async function installOpenTack(): Promise<void> {
     process.exit(1)
   }
 
-  info("Cloning OpenTack...")
+  info("Cloning Pinboard...")
   await $`git clone --depth=1 --branch ${BRANCH} https://github.com/${REPO}.git ${dir}`
   ok(`Cloned to ${dir}`)
 
@@ -280,7 +280,7 @@ async function installOpenTack(): Promise<void> {
   info("Building desktop app...")
   await $`bun run build`.cwd(dir)
 
-  // Rename app folder from "OpenTack-dev" → "OpenTack" (electrobun appends -dev for dev builds)
+  // Rename app folder from "Pinboard-dev" → "Pinboard" (electrobun appends -dev for dev builds)
   const arch = process.arch === "x64" ? "x64" : process.arch
   const platformFolder: Record<string, string> = {
     win32: `win32-${arch}`,
@@ -289,8 +289,8 @@ async function installOpenTack(): Promise<void> {
   }
   const buildSubFolder = `dev-${platformFolder[process.platform] || "linux-x64"}`
   const buildsDir = path.join(dir, "build", buildSubFolder)
-  const oldAppDir = path.join(buildsDir, "OpenTack-dev")
-  const newAppDir = path.join(buildsDir, "OpenTack")
+  const oldAppDir = path.join(buildsDir, "Pinboard-dev")
+  const newAppDir = path.join(buildsDir, "Pinboard")
   if (await Bun.file(oldAppDir).exists() && !await Bun.file(newAppDir).exists()) {
     await $`mv ${oldAppDir} ${newAppDir}`.quiet()
   }
@@ -304,42 +304,42 @@ async function installOpenTack(): Promise<void> {
     mkdirSync(appsDir, { recursive: true })
     const desktopEntry = `[Desktop Entry]
 Type=Application
-Name=OpenTack
+Name=Pinboard
 Comment=Local ticket-based workspace for opencode
 Exec=${launcherPath}
 Icon=${iconPath}
 Terminal=false
 Categories=Development;Utility;
-StartupWMClass=OpenTack
+StartupWMClass=Pinboard
 `
-    const desktopFile = path.join(appsDir, "opentack.desktop")
+    const desktopFile = path.join(appsDir, "pinboard.desktop")
     await Bun.write(desktopFile, desktopEntry)
-    ok("App shortcut added to system menu (OpenTack)")
+    ok("App shortcut added to system menu (Pinboard)")
   }
 }
 
 // ── Main ──────────────────────────────────────────────────────────
 
 function printHelp() {
-  console.log(`OpenTack Installer v${PKG_VERSION}`)
+  console.log(`Pinboard Installer v${PKG_VERSION}`)
   console.log(`Single-binary installer for ${REPO}`)
   console.log()
-  console.log("Usage: opentack-install [options]")
+  console.log("Usage: pinboard-install [options]")
   console.log()
   console.log("Options:")
   console.log("  --help, -h     Show this help")
   console.log("  --version, -v  Show version")
   console.log()
   console.log("Environment variables:")
-  console.log("  OPENTACK_DIR       Install directory (default: ~/opentack)")
-  console.log("  OPENTACK_DATA_DIR  Data directory  (default: ~/.opentack)")
+  console.log("  PINBOARD_DIR       Install directory (default: ~/.pinboard)")
+  console.log("  PINBOARD_DATA_DIR  Data directory  (default: ~/.pinboard)")
   console.log()
   console.log("What it does:")
   console.log("  1. Checks for git (must be pre-installed)")
   console.log("  2. Installs bun silently if missing")
   console.log("  3. Installs opencode silently if missing")
   console.log("  4. Installs GStreamer plugins (Linux only — WebKit media)")
-  console.log("  5. Clones the OpenTack repo")
+  console.log("  5. Clones the Pinboard repo")
   console.log("  6. Runs bun install, DB migrations, and frontend build")
   console.log("  7. Builds the native desktop app (via electrobun)")
   console.log("  8. Registers app shortcut in system menu (Linux)")
@@ -358,15 +358,15 @@ async function main() {
     return
   }
 
-  banner("OpenTack — Install")
+  banner("Pinboard — Install")
 
   await ensureGit()
   await ensureBun()
   await ensureOpencode()
   await ensureGStreamer()
-  await installOpenTack()
+  await installPinboard()
 
-  // Find the app (after rename from OpenTack-dev → OpenTack)
+  // Find the app (after rename from Pinboard-dev → Pinboard)
   const arch = process.arch === "x64" ? "x64" : process.arch
   const platformFolder: Record<string, string> = {
     win32: `win32-${arch}`,
@@ -374,17 +374,17 @@ async function main() {
     linux: `linux-${arch}`,
   }
   const buildSubFolder = `dev-${platformFolder[process.platform] || "linux-x64"}`
-  const appDir = path.join(INSTALL_DIR, "build", buildSubFolder, "OpenTack")
+  const appDir = path.join(INSTALL_DIR, "build", buildSubFolder, "Pinboard")
   const appPath =
     process.platform === "win32"
-      ? path.join(appDir, "OpenTack.exe")
+      ? path.join(appDir, "Pinboard.exe")
       : process.platform === "darwin"
-        ? path.join(appDir, "OpenTack.app")
+        ? path.join(appDir, "Pinboard.app")
         : path.join(appDir, "bin", "launcher")
 
-  banner("OpenTack is installed!")
+  banner("Pinboard is installed!")
   if (process.platform === "linux") {
-    console.log(`  ${BOLD}Run it:${NC}  Find "OpenTack" in your app menu`)
+    console.log(`  ${BOLD}Run it:${NC}  Find "Pinboard" in your app menu`)
   } else {
     console.log(`  ${BOLD}Run it:${NC}`)
     console.log(`    ${appPath}`)

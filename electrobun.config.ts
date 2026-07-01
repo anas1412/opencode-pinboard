@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun"
 
 export default {
   app: {
-    name: "OpenTack",
-    identifier: "com.opentack.app",
+    name: "Pinboard",
+    identifier: "com.pinboard.app",
     version: "0.1.0",
   },
   runtime: {
@@ -30,6 +30,6 @@ export default {
     },
   },
   release: {
-    baseUrl: "https://releases.opentack.dev/",
+    baseUrl: "https://releases.pinboard.dev/",
   },
 } satisfies ElectrobunConfig

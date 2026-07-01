@@ -2,11 +2,11 @@ import type { FastifyInstance } from "fastify";
 import { gte, lte, and, eq, like, isNotNull } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { dailyCostHistory, aggregateOpencodeSessionsSince, enrichSessions, queryOpencodeSessionsSince, normalizeModel } from "../../shared/opencode-db";
-import { getOpenTackWorktreesDir } from "../../paths";
+import { getPinboardWorktreesDir } from "../../paths";
 
 export function registerCostRoutes(app: FastifyInstance) {
   // All cost data comes from opencode's global DB via the SDK.
-  // OpenTack never tracks costs itself.
+  // Pinboard never tracks costs itself.
 
   // Weekly cost summary with per-repo breakdown
   app.get("/api/costs/summary", async () => {
@@ -18,10 +18,10 @@ export function registerCostRoutes(app: FastifyInstance) {
     // Per-repo breakdown from opencode DB directory field
     const ocSessions = queryOpencodeSessionsSince(weekAgo);
 
-    // Map opencode directories to OpenTack repos
+    // Map opencode directories to Pinboard repos
     const allRepos = await db.select().from(schema.repos);
     const sortedRepos = [...allRepos].sort((a, b) => b.localPath.length - a.localPath.length);
-    const worktreesRoot = getOpenTackWorktreesDir();
+    const worktreesRoot = getPinboardWorktreesDir();
     function repoForDir(dir: string | null): { id: string; name: string } | undefined {
       if (!dir) return undefined;
       return sortedRepos.find((r) => dir.startsWith(r.localPath) || dir.startsWith(worktreesRoot + "/" + r.name + "/"));
@@ -38,7 +38,7 @@ export function registerCostRoutes(app: FastifyInstance) {
       perRepoMap.set(repo.id, existing);
     }
 
-    // ticketCount from OpenTack sessions
+    // ticketCount from Pinboard sessions
     const ticketSessions = await db
       .select({ ticketId: schema.sessions.ticketId })
       .from(schema.sessions)
@@ -138,7 +138,7 @@ export function registerCostRoutes(app: FastifyInstance) {
     const startMs = req.query.startDate ? new Date(req.query.startDate).getTime() : 0;
     const endMs = req.query.endDate ? new Date(req.query.endDate).getTime() : Infinity;
 
-    // Single source of truth: opencode DB. No OpenTack tables touched.
+    // Single source of truth: opencode DB. No Pinboard tables touched.
     const allSessions = queryOpencodeSessionsSince(startMs);
 
     const perModel = new Map<string, {

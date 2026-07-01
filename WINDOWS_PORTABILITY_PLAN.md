@@ -1,6 +1,6 @@
 # Windows Portability Plan
 
-**Goal:** Make OpenTack work on Windows without regressions on Linux/macOS.
+**Goal:** Make Pinboard work on Windows without regressions on Linux/macOS.
 
 **Strategy:** Bun is cross-platform. The blockers are our Unix shell assumptions in `execSync`, hardcoded `$HOME` paths, and `/proc/` filesystem access.
 
@@ -14,7 +14,7 @@
 - [x] **Phase 6** — Fix installer: bash spawns → error on Windows with manual-install guidance
 - [x] **Phase 7** — Fix installer: `which`/`uname`/`mkdir -p` → `where`/`process.platform`/`mkdirSync`
 - [x] **Phase 8** — Fix installer: GStreamer/sudo (already gated behind `process.platform === "linux"`)
-- [x] **Phase 9** — Deprecate `opentack.sh` for Windows (added `opentack.bat` + Unix-only header)
+- [x] **Phase 9** — Deprecate `pinboard.sh` for Windows (added `pinboard.bat` + Unix-only header)
 - [x] **Phase 10** — Fix UI path strings (already cross-platform — uses `path.resolve`)
 - [x] **Phase 11** — Fix `dev:hot` npm script (replaced bash-isms with `scripts/dev-hot.ts`)
 - [x] **Phase 12** — Add Windows/Linux icons in `electrobun.config.ts` (all 3 generated in `assets/`)
@@ -36,7 +36,7 @@ Create one source of truth for all file paths. Replace `process.env.HOME` (undef
 Import `src/paths.ts` in every file that hardcodes a path.
 
 **Files to modify:**
-- `src/db/index.ts` — `process.env.HOME` → `getOpenTackDbPath()`
+- `src/db/index.ts` — `process.env.HOME` → `getPinboardDbPath()`
 - `src/bun/handlers/index.ts` — 8 inline paths → path functions
 - `src/server/routes/cost-utils.ts` — hardcoded opencode DB path
 - `src/server/routes/opencode-config.ts` — replace own `getConfigDir()` with shared
@@ -110,11 +110,11 @@ Guard GStreamer step with `process.platform === "linux"`. Skip entirely on Windo
 
 ---
 
-## Phase 9 — Deprecate `opentack.sh` for Windows
+## Phase 9 — Deprecate `pinboard.sh` for Windows
 
-Add header note: "Windows users: use `opentack-install.exe` instead."
+Add header note: "Windows users: use `pinboard-install.exe` instead."
 
-**Files:** `opentack.sh`, `README.md`
+**Files:** `pinboard.sh`, `README.md`
 **Verification:** Clear guidance for Windows users.
 
 ---

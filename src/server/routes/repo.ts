@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "../../db";
 import { repoCreateSchema, repoUpdateSchema } from "../validators";
-import { getOpenTackReposDir } from "../../paths";
+import { getPinboardReposDir } from "../../paths";
 
 export function registerRepoRoutes(app: FastifyInstance) {
   // Create repo
@@ -124,9 +124,9 @@ export function registerRepoRoutes(app: FastifyInstance) {
       });
     }
 
-    const reposDir = process.env.OPENTACK_DB_PATH
-      ? path.join(path.dirname(process.env.OPENTACK_DB_PATH), "repos")
-      : getOpenTackReposDir();
+    const reposDir = process.env.PINBOARD_DB_PATH
+      ? path.join(path.dirname(process.env.PINBOARD_DB_PATH), "repos")
+      : getPinboardReposDir();
     const cloneDest = path.join(reposDir, repoName);
 
     // Check if already exists

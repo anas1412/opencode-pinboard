@@ -1,14 +1,14 @@
-# OpenTack
+# Pinboard
 
 <p align="center">
-  <img src="./public/OG-preview.png" alt="OpenTack logo" width="800">
+  <img src="./public/OG-preview.png" alt="Pinboard logo" width="800">
 </p>
 
-**Track your opencode work like a pro — without leaving your browser.**
+**Pin your opencode work like a pro — without leaving your browser.**
 
 > **Not affiliated with OpenCode.** This project is built by the community, not the OpenCode team. It is not officially endorsed by or associated with [opencode](https://github.com/anomalyco/opencode) or its maintainers.
 
-OpenTack is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
+Pinboard is a lightweight local dashboard that sits on top of [opencode](https://github.com/anomalyco/opencode). It turns your opencode sessions into tickets — giving you a bird's-eye view of everything you're working on, what you've done, and how much it cost.
 
 ## Why?
 
@@ -18,18 +18,18 @@ opencode is great at what it does — it's an AI coding agent that runs in your 
 - What was I doing in that session yesterday?
 - How much did that feature cost in API tokens?
 
-OpenTack gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local AI coding sessions — but without the setup, the cloud, or the complexity.
+Pinboard gives you a simple browser interface to answer all of that. Think of it like a lightweight Jira for your local AI coding sessions — but without the setup, the cloud, or the complexity.
 
 ## How it works
 
-OpenTack runs entirely on your machine. Nothing leaves your computer.
+Pinboard runs entirely on your machine. Nothing leaves your computer.
 
-1. **Add repos** — point OpenTack at any local Git repo, or clone from GitHub
+1. **Add repos** — point Pinboard at any local Git repo, or clone from GitHub
 2. **Create tickets** — give each ticket a title, description, priority, category, and repo. A feature branch is generated automatically (e.g. `feat/my-feature-uuid`).
-3. **Start a session** — OpenTack creates a dedicated git worktree for the ticket, launches opencode in the background, and opens a split-panel view in your browser. Each session is fully isolated — work on multiple tickets in parallel.
+3. **Start a session** — Pinboard creates a dedicated git worktree for the ticket, launches opencode in the background, and opens a split-panel view in your browser. Each session is fully isolated — work on multiple tickets in parallel.
 4. **Code** — talk to opencode in the right panel while viewing ticket details on the left. Sessions resume where you left off, preserving the full conversation history.
 5. **Track** — see active sessions, weekly costs, daily cost history, per-repo and per-model breakdowns. Cost data comes directly from opencode.
-6. **Breeze through restarts** — active sessions survive server restarts. OpenTack picks up where it left off.
+6. **Breeze through restarts** — active sessions survive server restarts. Pinboard picks up where it left off.
 
 Switch between **Overview** (dashboard with stats, cost charts, activity timeline), **List** (filterable table), **Board** (drag-and-drop Kanban), and **Journal** (daily activity grouped by day). Each ticket tracks its session history, token usage, and cost automatically.
 
@@ -43,23 +43,23 @@ Switch between **Overview** (dashboard with stats, cost charts, activity timelin
 ### Install (one-liner)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anas1412/opentack/main/opentack.sh | bash
+curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh | bash
 ```
 
-Or use the compiled installer binary (from a [release](https://github.com/anas1412/opentack/releases)):
+Or use the compiled installer binary (from a [release](https://github.com/anas1412/opencode-pinboard/releases)):
 ```bash
 # Linux
-./opentack-install-linux
+./pinboard-install-linux
 # Windows
-opentack-install-windows.exe
+pinboard-install-windows.exe
 ```
 
 ### Run the desktop app
 
 | Platform | How to launch |
 |---|---|
-| **Linux** | Find **OpenTack** in your app menu (installed to `~/.local/share/applications/opentack.desktop`) |
-| **Windows** | Run `OpenTack-dev.exe` from `build/dev-win32-x64/OpenTack-dev/` |
+| **Linux** | Find **Pinboard** in your app menu (installed to `~/.local/share/applications/pinboard.desktop`) |
+| **Windows** | Run `Pinboard-dev.exe` from `build/dev-win32-x64/Pinboard-dev/` |
 
 Or from the project directory:
 ```bash
@@ -69,8 +69,8 @@ bun run dev          # Dev mode with hot-reload, opens desktop window
 ### Build manually
 
 ```bash
-git clone https://github.com/anas1412/opentack.git
-cd opentack
+git clone https://github.com/anas1412/opencode-pinboard.git
+cd opencode-pinboard
 bun install
 bun run db:migrate
 bun run build        # Produces the native desktop app in build/
@@ -89,18 +89,18 @@ bun run build
 
 ```bash
 cd ..
-rm -rf opentack
-rm -rf ~/.opentack
-rm -rf ~/opentack-worktrees
+rm -rf opencode-pinboard
+rm -rf ~/.pinboard
+rm -rf ~/pinboard-worktrees
 ```
 
 ### Add a repo
 
 Click the **+** button in the sidebar under Repos. You have two options:
 
-**Local folder** — pick any local Git repository. OpenTack detects the repo name and default branch automatically.
+**Local folder** — pick any local Git repository. Pinboard detects the repo name and default branch automatically.
 
-**Clone from GitHub** — paste a git URL (SSH or HTTPS). OpenTack clones it to `~/.opentack/repos/` and adds it automatically.
+**Clone from GitHub** — paste a git URL (SSH or HTTPS). Pinboard clones it to `~/.pinboard/repos/` and adds it automatically.
 
 > **Private repos**: If cloning fails with a permission error, make sure you have SSH keys set up:
 > ```
@@ -120,7 +120,7 @@ Click **New ticket**, give it a title, description, priority, category, and assi
 
 ### Start working
 
-Click **Start session**. OpenTack creates a git worktree in `~/opentack-worktrees/`, launches opencode for that ticket, and optionally refines your ticket description into a more structured prompt before sending it. The opencode session appears in an iframe in the right panel. Stop the session when done; resume it later — the conversation history is preserved.
+Click **Start session**. Pinboard creates a git worktree in `~/pinboard-worktrees/`, launches opencode for that ticket, and optionally refines your ticket description into a more structured prompt before sending it. The opencode session appears in an iframe in the right panel. Stop the session when done; resume it later — the conversation history is preserved.
 
 ### Batch operations
 
@@ -149,7 +149,7 @@ After a session, click **Generate notes** to have opencode summarize the session
 | `bun run build` | Build client + server for production |
 | `bun run build:client` | Build only the frontend (Vite) |
 | `bun run build:server` | Build only the server (Bun bundle) |
-| `bun run build:installer` | Compile a single-file installer binary → `dist/opentack-install` (or `.exe` on Windows) |
+| `bun run build:installer` | Compile a single-file installer binary → `dist/pinboard-install` (or `.exe` on Windows) |
 | `bun run db:migrate` | Apply database migrations |
 | `bun run db:generate` | Generate migrations from schema |
 | `bun run typecheck` | Type-check the codebase |
@@ -162,8 +162,8 @@ After a session, click **Generate notes** to have opencode summarize the session
 bun run build:installer
 
 # The output binary auto-suffixed per platform:
-#   Linux:   dist/opentack-install
-#   Windows: dist/opentack-install.exe
+#   Linux:   dist/pinboard-install
+#   Windows: dist/pinboard-install.exe
 ```
 
 The installer binary handles: checking prerequisites, installing bun/opencode if missing (Unix), cloning the repo, running migrations, and building the frontend. Run it with `--help` to see options.

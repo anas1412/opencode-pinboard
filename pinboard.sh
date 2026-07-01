@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Unix-only: Windows users, use opentack.bat or the opentack-install binary.
+# Unix-only: Windows users, use pinboard.bat or the pinboard-install binary.
 set -euo pipefail
 
-REPO="anas1412/opentack"
+REPO="anas1412/opencode-pinboard"
 BRANCH="main"
-INSTALL_DIR="${OPENTACK_DIR:-$HOME/opentack}"
-DATA_DIR="${OPENTACK_DATA_DIR:-$HOME/.opentack}"
+INSTALL_DIR="${PINBOARD_DIR:-$HOME/.pinboard}"
+DATA_DIR="${PINBOARD_DATA_DIR:-$HOME/.pinboard}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -113,7 +113,7 @@ ensure_gstreamer() {
 cmd_install() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTack — Install              ║"
+  echo "  ║         Pinboard — Install              ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
@@ -122,12 +122,12 @@ cmd_install() {
 
   if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists."
-    echo "  To update instead, run: $0 update"
+    echo "  To update instead, run: pinboard.sh update"
     echo "  To reinstall, remove it first: rm -rf $INSTALL_DIR"
     exit 1
   fi
 
-  info "Cloning OpenTack..."
+  info "Cloning Pinboard..."
   git clone --depth=1 --branch "$BRANCH" "https://github.com/$REPO.git" "$INSTALL_DIR"
   ok "Cloned to $INSTALL_DIR"
 
@@ -159,7 +159,7 @@ EOF
 
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTack is installed!          ║"
+  echo "  ║         Pinboard is installed!          ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
   echo "  Run it:"
@@ -174,13 +174,13 @@ EOF
 cmd_update() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTack — Update               ║"
+  echo "  ║         Pinboard — Update               ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
   if [ ! -d "$INSTALL_DIR/.git" ]; then
-    err "No OpenTack installation found at $INSTALL_DIR."
-    echo "  Install it first: curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/opentack.sh | bash"
+    err "No Pinboard installation found at $INSTALL_DIR."
+    echo "  Install it first: curl -fsSL https://raw.githubusercontent.com/$REPO/$BRANCH/pinboard.sh | bash"
     exit 1
   fi
 
@@ -220,7 +220,7 @@ EOF
   ok "Rebuild complete"
 
   echo ""
-  echo "  OpenTack is up to date!"  
+  echo "  Pinboard is up to date!"  
   echo ""
 }
 
@@ -229,7 +229,7 @@ EOF
 cmd_uninstall() {
   echo ""
   echo "  ╔══════════════════════════════════════════╗"
-  echo "  ║         OpenTack — Uninstall            ║"
+  echo "  ║         Pinboard — Uninstall            ║"
   echo "  ╚══════════════════════════════════════════╝"
   echo ""
 
@@ -250,7 +250,7 @@ cmd_uninstall() {
   fi
 
   echo ""
-  ok "OpenTack has been uninstalled."
+  ok "Pinboard has been uninstalled."
   echo "  bun and opencode were kept — remove them manually if desired."
   echo ""
 }
@@ -258,14 +258,14 @@ cmd_uninstall() {
 # ── Help ───────────────────────────────────────────────────────────
 
 cmd_help() {
-  echo "OpenTack — local ticket-based workspace for opencode"
+  echo "Pinboard — local ticket-based workspace for opencode"
   echo ""
   echo "Usage: $0 <command>"
   echo ""
   echo "Commands:"
-  echo "  install     Install OpenTack and its dependencies"
+  echo "  install     Install Pinboard and its dependencies"
   echo "  update      Pull latest version and rebuild"
-  echo "  uninstall   Remove OpenTack (keeps bun and opencode)"
+  echo "  uninstall   Remove Pinboard (keeps bun and opencode)"
   echo ""
 }
 

@@ -3,9 +3,9 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "fs";
 import { dirname } from "path";
 import * as schema from "./schema";
-import { getOpenTackDbPath } from "../paths";
+import { getPinboardDbPath } from "../paths";
 
-const DB_PATH = getOpenTackDbPath();
+const DB_PATH = getPinboardDbPath();
 
 // Ensure parent directory exists
 mkdirSync(dirname(DB_PATH), { recursive: true });

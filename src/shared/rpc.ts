@@ -19,11 +19,11 @@ import type {
 } from "./types"
 
 /**
- * RPC type definitions for OpenTack's main<->renderer communication.
+ * RPC type definitions for Pinboard's main<->renderer communication.
  *
  * Mirror of all current REST API endpoints, converted to typed RPC calls.
  */
-export type OpenTackRPC = {
+export type PinboardRPC = {
   bun: RPCSchema<{
     requests: {
       // ─── Health ──────────────────────────────────────────────

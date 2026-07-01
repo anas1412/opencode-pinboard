@@ -315,7 +315,7 @@ export default function Settings() {
             <h2 className="text-lg font-semibold text-white">Settings</h2>
           </div>
           <p className="text-sm text-zinc-500">
-            Configure OpenTack and opencode integration.
+            Configure Pinboard and opencode integration.
           </p>
         </div>
 

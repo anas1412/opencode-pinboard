@@ -1,16 +1,16 @@
 import { Electroview } from "electrobun/view"
-import type { OpenTackRPC } from "../../shared/rpc"
+import type { PinboardRPC } from "../../shared/rpc"
 
 /**
  * RPC client — connects to main process via Electrobun's WebSocket bridge.
  * Singleton: import `request` and `onMessage` across all API modules.
  */
 
-type Requests = OpenTackRPC["bun"]["requests"]
-type Messages = OpenTackRPC["webview"]["messages"]
+type Requests = PinboardRPC["bun"]["requests"]
+type Messages = PinboardRPC["webview"]["messages"]
 
 // Define & set up RPC (gracefully no-ops outside Electrobun/webview)
-const rpc = Electroview.defineRPC<OpenTackRPC>({
+const rpc = Electroview.defineRPC<PinboardRPC>({
   maxRequestTime: 60000,
   handlers: {},
 })

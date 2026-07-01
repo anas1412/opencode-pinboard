@@ -123,7 +123,7 @@ opencode /event SSE stream
   → client.event.subscribe()
     → filter session.* events
       → extract cost/token data
-        → emitSse() to OpenTack's own SSE
+        → emitSse() to Pinboard's own SSE
           → browser updates live
 ```
 

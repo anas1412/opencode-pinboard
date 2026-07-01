@@ -40,11 +40,11 @@ export interface GhTestResult {
 
 const ENCRYPTION_ALGORITHM = "aes-256-gcm";
 const PBKDF2_ITERATIONS = 100_000;
-const PBKDF2_SALT = "opentack-gh-token-v1";
+const PBKDF2_SALT = "pinboard-gh-token-v1";
 
 function getEncryptionKey(): Buffer {
   const hn = hostname();
-  return pbkdf2Sync(hn + "-opentack-key", PBKDF2_SALT, PBKDF2_ITERATIONS, 32, "sha256");
+  return pbkdf2Sync(hn + "-pinboard-key", PBKDF2_SALT, PBKDF2_ITERATIONS, 32, "sha256");
 }
 
 export function encryptToken(token: string): string {

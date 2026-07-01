@@ -350,12 +350,12 @@ The TUI client (`opencode [project]`) connects to the local server and:
 
 The ACP (Agent Client Protocol) adapter also connects to the server, creating a bridge between external tools and opencode.
 
-## 9. Key Integration Points for OpenTack
+## 9. Key Integration Points for Pinboard
 
 ### Option A: PTY + Terminal (Current)
 
 ```
-OpenTack → spawn opencode [cwd] in node-pty → stream TTY bytes via xterm.js WebSocket
+Pinboard → spawn opencode [cwd] in node-pty → stream TTY bytes via xterm.js WebSocket
 ```
 
 Problems:
@@ -366,7 +366,7 @@ Problems:
 ### Option B: Headless Server + HTTP API (Recommended)
 
 ```
-OpenTack Server
+Pinboard Server
   ├── spawn opencode serve --port <port> (per repo or per session)
   ├── create sessions via POST /project/:id/session
   ├── send prompts via POST /project/:id/session/:sid/message
@@ -384,7 +384,7 @@ Advantages:
 ### Option C: SDK Embedded
 
 ```
-OpenTack Server
+Pinboard Server
   ├── import { createOpencode } from "@opencode-ai/sdk"
   ├── const { client, server } = await createOpencode()
   ├── client.session.create({ body: { directory } })
@@ -399,7 +399,7 @@ Advantages:
 ### Option D: `opencode run --attach` to shared server
 
 ```
-OpenTack Server
+Pinboard Server
   ├── spawn opencode serve --port 4096 (one per user/repo)
   ├── for each user prompt: opencode run --attach http://localhost:4096 --format json
   └── capture JSON events and relay to browser
