@@ -85,6 +85,7 @@ const REST_MAP: Record<string, RestRoute> = {
   sessionBranch: { method: "GET", path: (p) => `/api/sessions/${p.id}/branch` },
   createChat: { method: "POST", path: "/api/chats" },
   stopChat: { method: "POST", path: (p) => `/api/chats/${p.sessionId}/stop` },
+  resumeChat: { method: "POST", path: (p) => `/api/chats/${p.chatId}/resume` },
   listChats: { method: "GET", path: "/api/chats" },
   getChat: { method: "GET", path: (p) => `/api/chats/${p.id}` },
   costSummary: { method: "GET", path: "/api/costs/summary" },

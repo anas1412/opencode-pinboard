@@ -2,6 +2,7 @@ import { request } from "./rpc-client"
 
 export interface ChatSession {
   id: string
+  name: string
   cwd: string
   serverPort: number | null
   opencodeSessionId: string | null
@@ -31,6 +32,7 @@ export function fetchChats(): Promise<ChatSession[]> {
   return request("listChats").then((sessions) =>
     sessions.map((s) => ({
       id: s.id,
+      name: s.initialPrompt || s.id.slice(0, 8),
       cwd: s.cwd,
       serverPort: s.serverPort,
       opencodeSessionId: s.opencodeSessionId,
@@ -43,6 +45,7 @@ export function fetchChats(): Promise<ChatSession[]> {
 export function fetchChat(id: string): Promise<ChatSession> {
   return request("getChat", { id }).then((s) => ({
     id: s.id,
+    name: s.initialPrompt || s.id.slice(0, 8),
     cwd: s.cwd,
     serverPort: s.serverPort,
     opencodeSessionId: s.opencodeSessionId,
@@ -53,4 +56,8 @@ export function fetchChat(id: string): Promise<ChatSession> {
 
 export function stopChat(id: string): Promise<void> {
   return request("stopChat", { sessionId: id })
+}
+
+export function resumeChat(chatId: string): Promise<{ opencodePort: number; cwd: string; opencodeSessionId: string | null }> {
+  return request("resumeChat", { chatId })
 }

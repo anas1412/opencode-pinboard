@@ -104,6 +104,14 @@ export type PinboardRPC = {
         }
       }
       stopChat: { params: { sessionId: string }; response: void }
+      resumeChat: {
+        params: { chatId: string }
+        response: {
+          opencodePort: number
+          cwd: string
+          opencodeSessionId: string | null
+        }
+      }
       listChats: { params: void; response: Session[] }
       getChat: { params: { id: string }; response: Session }
 

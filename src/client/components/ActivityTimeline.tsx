@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useRecentSessions } from "../hooks/useRecentSessions";
-import { Clock, Zap, GitBranch, CheckCircle, XCircle, Loader } from "lucide-react";
+import { Clock, Zap, GitBranch, CheckCircle, XCircle, Loader, MessageSquare, Ticket } from "lucide-react";
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -55,54 +55,71 @@ export default function ActivityTimeline({ repoId, limit = 20 }: ActivityTimelin
 
   return (
     <div className="space-y-0.5">
-      {sessions.map((s) => (
-        <div
-          key={s.id}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/40 transition-colors group"
-        >
-          {/* Status dot */}
-          <span className="shrink-0">{statusIcon(s)}</span>
-
-          {/* Time */}
-          <span className="text-xs text-zinc-600 w-14 shrink-0 font-mono">
-            {timeAgo(s.createdAt)}
-          </span>
-
-          {/* Ticket title */}
-          <button
-            onClick={() => navigate({ to: `/tickets/${s.ticketId}`, search: repoId ? { repoId } : {} })}
-            className="text-sm text-zinc-300 hover:text-blue-400 transition-colors truncate flex-1 min-w-0 text-left"
+      {sessions.map((s) => {
+        const isChat = !s.ticketId;
+        const name = isChat ? (s.initialPrompt || `Chat ${s.id.slice(0, 8)}`) : s.ticketTitle;
+        return (
+          <div
+            key={s.id}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/40 transition-colors group"
           >
-            {s.ticketTitle}
-          </button>
+            {/* Status dot */}
+            <span className="shrink-0">{statusIcon(s)}</span>
 
-          {/* Repo badge */}
-          <span className="flex items-center gap-1 text-xs text-zinc-500 shrink-0">
-            <GitBranch size={10} />
-            {s.repoName}
-          </span>
-
-          {/* Model */}
-          {s.model && s.model !== "unknown" && (
-            <span className="text-xs text-zinc-600 shrink-0 font-mono hidden sm:inline">
-              {s.model}
+            {/* Time */}
+            <span className="text-xs text-zinc-600 w-14 shrink-0 font-mono">
+              {timeAgo(s.createdAt)}
             </span>
-          )}
 
-          {/* Tokens */}
-          <span className="flex items-center gap-1 text-xs text-zinc-600 shrink-0 font-mono">
-            <Zap size={10} />
-            {s.totalTokens.toLocaleString()}
-          </span>
-
-          {/* Duration */}
-          {s.durationMs !== null && (
-            <span className="text-xs text-zinc-600 shrink-0 font-mono w-16 text-right">
-              {formatDuration(s.durationMs)}
+            {/* Icon for type */}
+            <span className="shrink-0 text-zinc-600">
+              {isChat ? <MessageSquare size={12} /> : <Ticket size={12} />}
             </span>
-          )}
-        </div>
-      ))}
+
+            {/* Title */}
+            <button
+              onClick={() =>
+                isChat
+                  ? navigate({ to: `/chat/${s.id}` })
+                  : navigate({ to: `/tickets/${s.ticketId}`, search: repoId ? { repoId } : {} })
+              }
+              className="text-sm text-zinc-300 hover:text-blue-400 transition-colors truncate flex-1 min-w-0 text-left"
+            >
+              {name || "(untitled)"}
+            </button>
+
+            {/* Repo badge */}
+            {s.repoName && (
+              <span className="flex items-center gap-1 text-xs text-zinc-500 shrink-0">
+                <GitBranch size={10} />
+                {s.repoName}
+              </span>
+            )}
+
+            {/* Model */}
+            {s.model && s.model !== "unknown" && (
+              <span className="text-xs text-zinc-600 shrink-0 font-mono hidden sm:inline">
+                {s.model}
+              </span>
+            )}
+
+            {/* Tokens */}
+            {s.totalTokens > 0 && (
+              <span className="flex items-center gap-1 text-xs text-zinc-600 shrink-0 font-mono">
+                <Zap size={10} />
+                {s.totalTokens.toLocaleString()}
+              </span>
+            )}
+
+            {/* Duration */}
+            {s.durationMs !== null && (
+              <span className="text-xs text-zinc-600 shrink-0 font-mono w-16 text-right">
+                {formatDuration(s.durationMs)}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { existsSync } from "fs";
 import { db, schema } from "../../db";
@@ -32,17 +33,32 @@ export function registerSessionRoutes(app: FastifyInstance) {
       repoId: z.string().uuid().optional(),
     }).parse(req.query);
 
-    // Build the query — only ticket sessions (exclude chats), join with tickets (+ repos) for metadata
-    const conditions = [isNotNull(schema.sessions.ticketId)];
-    if (query.repoId) conditions.push(eq(schema.tickets.repoId, query.repoId));
+    // Include both ticket sessions and chat sessions (ticketId = null).
+    // LEFT JOIN tickets so chats still appear.
+    // Two repo joins: through tickets.repoId (for ticket sessions) and through sessions.cwd (for chats, where cwd = repo.localPath).
+    const reposTicket = alias(schema.repos, "repos_ticket");
+    const reposCwd = alias(schema.repos, "repos_cwd");
+
+    const conditions: any[] = [];
+    if (query.repoId) {
+      conditions.push(or(
+        eq(schema.tickets.repoId, query.repoId),
+        eq(reposCwd.id, query.repoId),
+      ));
+    }
 
     const rows = await db
       .select({
         id: schema.sessions.id,
         ticketId: schema.sessions.ticketId,
         ticketTitle: schema.tickets.title,
-        repoId: schema.tickets.repoId,
-        repoName: schema.repos.name,
+        initialPrompt: schema.sessions.initialPrompt,
+        // Repo info from ticket join (populated for ticket sessions)
+        repoId: reposTicket.id,
+        repoName: reposTicket.name,
+        // Fallback repo info from cwd join (populated for chat sessions)
+        cwdRepoId: reposCwd.id,
+        cwdRepoName: reposCwd.name,
         model: schema.sessions.model,
         opencodeSessionId: schema.sessions.opencodeSessionId,
         createdAt: schema.sessions.createdAt,
@@ -52,13 +68,23 @@ export function registerSessionRoutes(app: FastifyInstance) {
         exitReason: schema.sessions.exitReason,
       })
       .from(schema.sessions)
-      .innerJoin(schema.tickets, eq(schema.sessions.ticketId, schema.tickets.id))
-      .innerJoin(schema.repos, eq(schema.tickets.repoId, schema.repos.id))
+      .leftJoin(schema.tickets, eq(schema.sessions.ticketId, schema.tickets.id))
+      .leftJoin(reposTicket, eq(schema.tickets.repoId, reposTicket.id))
+      .leftJoin(reposCwd, eq(schema.sessions.cwd, reposCwd.localPath))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(schema.sessions.createdAt))
       .limit(query.limit);
 
-    return enrichSessions(rows);
+    const mapped = rows.map((r) => ({
+      ...r,
+      repoId: r.repoId ?? r.cwdRepoId ?? null,
+      repoName: r.repoName ?? r.cwdRepoName ?? null,
+      transcript: "[]",
+      diff: "[]",
+      filesChanged: "[]",
+    }));
+
+    return enrichSessions(mapped);
   });
 
   // List sessions for a ticket

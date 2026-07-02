@@ -2,10 +2,11 @@ import { request } from "./rpc-client"
 
 export interface RecentSessionItem {
   id: string
-  ticketId: string
-  ticketTitle: string
-  repoId: string
-  repoName: string
+  ticketId: string | null
+  ticketTitle: string | null
+  initialPrompt: string | null
+  repoId: string | null
+  repoName: string | null
   model: string
   opencodeSessionId: string | null
   totalTokens: number
@@ -26,10 +27,11 @@ export function fetchRecentSessions(params?: RecentSessionsParams): Promise<Rece
   return request("recentSessions", { limit: params?.limit, repoId: params?.repoId }).then((sessions) =>
     sessions.map((s) => ({
       id: s.id,
-      ticketId: s.ticketId ?? "",
-      ticketTitle: s.ticketTitle ?? "",
-      repoId: s.repoId ?? "",
-      repoName: s.repoName ?? "",
+      ticketId: s.ticketId ?? null,
+      ticketTitle: s.ticketTitle ?? null,
+      initialPrompt: s.initialPrompt ?? null,
+      repoId: s.repoId ?? null,
+      repoName: s.repoName ?? null,
       model: s.model,
       opencodeSessionId: s.opencodeSessionId,
       totalTokens: s.totalTokens,

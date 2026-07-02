@@ -50,6 +50,7 @@ const rpc = BrowserView.defineRPC<PinboardRPC>({
       // Chats
       createChat: (params) => handlers.createChat(params),
       stopChat: ({ sessionId }) => handlers.stopChat({ sessionId }),
+      resumeChat: (params) => handlers.resumeChat(params),
       listChats: () => handlers.listChats(),
       getChat: ({ id }) => handlers.getChat({ id }),
 

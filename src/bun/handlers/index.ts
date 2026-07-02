@@ -929,6 +929,9 @@ export async function createChat(params: { repoId: string; model?: string; promp
     throw new Error("Could not start opencode session. Check that opencode is installed and in your PATH.")
   }
 
+  // Auto-name: "Chat in <repo> · Apr 14"
+  const chatName = params.prompt || `Chat in ${repo[0].name} · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
   await db.insert(schema.sessions).values({
     id: sessionId,
     ticketId: null,
@@ -936,7 +939,7 @@ export async function createChat(params: { repoId: string; model?: string; promp
     model: modelStr,
     cwd: repo[0].localPath,
     branch: "",
-    initialPrompt: params.prompt,
+    initialPrompt: chatName,
     opencodeSessionId,
     transcript: toJsonField([]),
     diff: toJsonField([]),
@@ -962,6 +965,50 @@ export async function stopChat(params: { sessionId: string }): Promise<void> {
 
   finalizeSessionCost(session.opencodeSessionId)
   await markSessionEnded(params.sessionId, null, null)
+}
+
+export async function resumeChat(params: { chatId: string }): Promise<{ opencodePort: number; cwd: string; opencodeSessionId: string | null }> {
+  const [session] = await db.select().from(schema.sessions).where(eq(schema.sessions.id, params.chatId)).limit(1)
+  if (!session) throw new Error("Chat not found")
+  if (session.ticketId) throw new Error("Session is a ticket session, not a chat")
+
+  // If already running, return current info
+  const existingPort = getSessionPort(params.chatId)
+  if (existingPort && session.serverPort && session.opencodeSessionId) {
+    return { opencodePort: existingPort, cwd: session.cwd, opencodeSessionId: session.opencodeSessionId }
+  }
+
+  // Reuse existing opencodeSessionId so history is preserved (same pattern as ticket sessions)
+  const opencodeSessionId = session.opencodeSessionId
+
+  // Start server
+  const opencodePort = await startSessionServer(params.chatId, session.cwd)
+
+  // Reset end state and update with new server info
+  const now = Date.now()
+  await db
+    .update(schema.sessions)
+    .set({
+      exitCode: null,
+      exitReason: null,
+      endedAt: null,
+      durationMs: null,
+      serverPort: opencodePort,
+      createdAt: now, // bump to top of timeline
+    })
+    .where(eq(schema.sessions.id, params.chatId))
+
+  // Persist PID
+  const pid = getSessionPid(params.chatId)
+  if (pid) {
+    await db
+      .update(schema.sessions)
+      .set({ pid })
+      .where(eq(schema.sessions.id, params.chatId))
+  }
+
+  emitSse({ type: "session.started", sessionId: params.chatId, ticketId: null })
+  return { opencodePort, cwd: session.cwd, opencodeSessionId }
 }
 
 export async function listChats(): Promise<Session[]> {

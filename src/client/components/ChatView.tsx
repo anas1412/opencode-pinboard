@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { chatRoute } from "../router";
-import { fetchChat, stopChat } from "../api/chats";
-import { Square, Loader2, ArrowLeft } from "lucide-react";
+import { fetchChat, stopChat, resumeChat } from "../api/chats";
+import { Square, Loader2, ArrowLeft, Play } from "lucide-react";
 
 /** UTF-8 → base64, matching opencode's pt() for directory slugs */
 function encodeDirSlug(dir: string): string {
@@ -61,6 +61,21 @@ export default function ChatView() {
     navigate({ to: "/" });
   };
 
+  const handleResume = async () => {
+    setPhase("loading");
+    try {
+      const result = await resumeChat(chatId);
+      setCwd(result.cwd);
+      setPort(result.opencodePort);
+      setOpencodeSessionId(result.opencodeSessionId);
+      // Wait a moment for the iframe to load
+      setTimeout(() => setPhase("active"), 300);
+    } catch (err: any) {
+      setError(err?.message || "Failed to resume chat");
+      setPhase("error");
+    }
+  };
+
   const handleBack = () => navigate({ to: "/" });
 
   return (
@@ -103,8 +118,14 @@ export default function ChatView() {
 
         {phase === "stopped" && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
-            <div className="text-center space-y-4">
-              <p className="text-sm text-zinc-400">Chat ended.</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleResume}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors"
+              >
+                <Play size={14} />
+                Resume chat
+              </button>
               <button
                 onClick={handleBack}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm font-medium text-zinc-300 transition-colors"

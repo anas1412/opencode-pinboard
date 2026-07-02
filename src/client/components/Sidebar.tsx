@@ -70,6 +70,8 @@ export default function Sidebar() {
     if (repoId) {
       setCreatingChat(true);
       createChat(repoId).then((chat) => {
+        // Immediately re-fetch so sidebar shows the new chat without waiting for next poll
+        fetchChats().then((list) => setActiveChats(list)).catch(() => {});
         navigate({ to: `/chat/${chat.id}` });
       }).catch(() => {}).finally(() => setCreatingChat(false));
     } else {
@@ -108,19 +110,26 @@ export default function Sidebar() {
             {creatingChat ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
-        {activeChats.map((chat) => (
-          <button
-            key={chat.id}
-            onClick={() => navigate({ to: `/chat/${chat.id}` })}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-md transition-colors text-left"
-          >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-blue-400" />
-            <span className="truncate flex-1 min-w-0 text-left font-mono">
-              chat · {chat.cwd?.split("/").pop() ?? chat.id.slice(0, 8)}
-            </span>
-            <ArrowRight size={12} className="shrink-0 text-zinc-600" />
-          </button>
-        ))}
+        {activeChats.map((chat) => {
+          const isActiveChat = pathname === `/chat/${chat.id}`;
+          return (
+            <button
+              key={chat.id}
+              onClick={() => navigate({ to: `/chat/${chat.id}` })}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors text-left ${
+                isActiveChat
+                  ? "text-zinc-200 bg-zinc-800/60"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActiveChat ? "bg-blue-300" : "bg-blue-400"}`} />
+              <span className="truncate flex-1 min-w-0 text-left">
+                {chat.name}
+              </span>
+              <ArrowRight size={12} className={`shrink-0 ${isActiveChat ? "text-zinc-500" : "text-zinc-600"}`} />
+            </button>
+          );
+        })}
         {activeChats.length === 0 && (
           <p className="px-3 py-1.5 text-xs text-zinc-600 italic">None running</p>
         )}

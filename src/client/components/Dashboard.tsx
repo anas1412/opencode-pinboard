@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { useTickets } from "../hooks/useTickets";
 import { useRepos } from "../hooks/useRepos";
+import { useRecentSessions } from "../hooks/useRecentSessions";
 import { useCostSummary } from "../hooks/useCostSummary";
 import ActivityTimeline from "./ActivityTimeline";
 import CostChart from "./CostChart";
@@ -64,6 +65,14 @@ export default function Dashboard() {
     if (repoId) tickets = tickets.filter((t) => t.repoId === repoId);
     return [...tickets].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
   }, [ticketsData, repoId]);
+
+  const { data: recentSessions } = useRecentSessions({ repoId, limit: 30 });
+  const recentChats = useMemo(() => {
+    if (!recentSessions) return [];
+    return recentSessions
+      .filter((s) => !s.ticketId)
+      .slice(0, 5);
+  }, [recentSessions]);
 
   return (
     <div className="space-y-8">
@@ -189,43 +198,73 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Recent tickets */}
-        <div>
-          <h3 className="text-sm font-medium text-zinc-300 mb-3">Recent tickets</h3>
-          <div className="space-y-1">
-            {recentTickets.length > 0 ? (
-              recentTickets.map((ticket) => {
-                const name = repos?.find((r) => r.id === ticket.repoId)?.name;
-                return (
+        {/* Recent tickets + Recent chats */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Recent tickets */}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-300 mb-3">Recent tickets</h3>
+            <div className="space-y-1">
+              {recentTickets.length > 0 ? (
+                recentTickets.map((ticket) => {
+                  const name = repos?.find((r) => r.id === ticket.repoId)?.name;
+                  return (
+                    <button
+                      key={ticket.id}
+                      onClick={() => navigate({ to: `/tickets/${ticket.id}`, search: repoId ? { repoId } : {} })}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          ticket.activeSessionId
+                            ? "bg-green-400"
+                            : ticket.status === "open"
+                              ? "bg-blue-500"
+                              : ticket.status === "resolved" || ticket.status === "closed"
+                                ? "bg-zinc-600"
+                                : "bg-amber-500"
+                        }`}
+                      />
+                      <span className="flex-1 text-sm text-zinc-300 group-hover:text-white transition-colors truncate">
+                        {ticket.title}
+                      </span>
+                      {name && !repoId && (
+                        <span className="text-xs text-zinc-600 shrink-0">{name}</span>
+                      )}
+                      <ArrowRight size={12} className="shrink-0 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-zinc-600 italic px-3">No tickets yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Recent chats */}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-300 mb-3">Recent chats</h3>
+            <div className="space-y-1">
+              {recentChats.length > 0 ? (
+                recentChats.map((chat) => (
                   <button
-                    key={ticket.id}
-                    onClick={() => navigate({ to: `/tickets/${ticket.id}`, search: repoId ? { repoId } : {} })}
+                    key={chat.id}
+                    onClick={() => navigate({ to: `/chat/${chat.id}` })}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-800/50 transition-colors text-left group"
                   >
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        ticket.activeSessionId
-                          ? "bg-green-400"
-                          : ticket.status === "open"
-                            ? "bg-blue-500"
-                            : ticket.status === "resolved" || ticket.status === "closed"
-                              ? "bg-zinc-600"
-                              : "bg-amber-500"
-                      }`}
-                    />
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-blue-400" />
                     <span className="flex-1 text-sm text-zinc-300 group-hover:text-white transition-colors truncate">
-                      {ticket.title}
+                      {chat.initialPrompt || `Chat ${chat.id.slice(0, 8)}`}
                     </span>
-                    {name && !repoId && (
-                      <span className="text-xs text-zinc-600 shrink-0">{name}</span>
+                    {chat.repoName && !repoId && (
+                      <span className="text-xs text-zinc-600 shrink-0">{chat.repoName}</span>
                     )}
                     <ArrowRight size={12} className="shrink-0 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
-                );
-              })
-            ) : (
-              <p className="text-sm text-zinc-600 italic px-3">No tickets yet</p>
-            )}
+                ))
+              ) : (
+                <p className="text-sm text-zinc-600 italic px-3">No chats yet</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

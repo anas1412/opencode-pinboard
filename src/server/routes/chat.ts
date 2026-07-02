@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { eq, isNull, and } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "../../db";
-import { startSessionServer, stopSessionServer, getSessionPort } from "../opencode-manager";
+import { startSessionServer, stopSessionServer, getSessionPort, getSessionPid } from "../opencode-manager";
 import { finalizeSessionCost, markSessionEnded } from "../../shared/session-lifecycle";
 import { emitSse } from "../sse";
 
@@ -127,6 +127,56 @@ export function registerChatRoutes(app: FastifyInstance) {
       createdAt: row.createdAt,
       endedAt: row.endedAt,
     };
+  });
+
+  // Resume a stopped chat session (restart server + create new opencode session)
+  app.post("/api/chats/:id/resume", async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const [session] = await db.select().from(schema.sessions).where(eq(schema.sessions.id, id));
+    if (!session)
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Chat not found" });
+    if (session.ticketId)
+      return reply.status(400).send({ error: "NOT_A_CHAT", message: "Session is a ticket session, not a chat" });
+
+    // If already running, return current info
+    const existingPort = getSessionPort(id);
+    if (existingPort && session.serverPort && session.opencodeSessionId) {
+      return { opencodePort: existingPort, cwd: session.cwd, opencodeSessionId: session.opencodeSessionId };
+    }
+
+    // Start server (reuse existing opencodeSessionId so history is preserved)
+    let opencodePort: number;
+    try {
+      opencodePort = await startSessionServer(id, session.cwd);
+    } catch {
+      return reply.status(500).send({
+        error: "SERVER_START_FAILED",
+        message: "Could not start opencode server. Check that opencode is installed and in your PATH.",
+      });
+    }
+
+    // Reset end state and update
+    const now = Date.now();
+    await db
+      .update(schema.sessions)
+      .set({
+        exitCode: null,
+        exitReason: null,
+        endedAt: null,
+        durationMs: null,
+        serverPort: opencodePort,
+        createdAt: now,
+      })
+      .where(eq(schema.sessions.id, id));
+
+    const pid = getSessionPid(id);
+    if (pid) {
+      await db.update(schema.sessions).set({ pid }).where(eq(schema.sessions.id, id));
+    }
+
+    emitSse({ type: "session.started", sessionId: id, ticketId: null });
+    return { opencodePort, cwd: session.cwd, opencodeSessionId: session.opencodeSessionId };
   });
 
   // Stop a chat session and record cost
