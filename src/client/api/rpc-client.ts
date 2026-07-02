@@ -65,6 +65,7 @@ const REST_MAP: Record<string, RestRoute> = {
   updateRepo: { method: "PUT", path: (p) => `/api/repos/${p.id}` },
   deleteRepo: { method: "DELETE", path: (p) => `/api/repos/${p.id}` },
   cloneRepo: { method: "POST", path: "/api/repos/clone" },
+  listGitHubRepos: { method: "POST", path: "/api/repos/gh-list" },
   listTickets: { method: "GET", path: "/api/tickets" },
   getTicket: { method: "GET", path: (p) => `/api/tickets/${p.id}` },
   createTicket: { method: "POST", path: "/api/tickets" },

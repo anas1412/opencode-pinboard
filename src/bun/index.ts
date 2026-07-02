@@ -24,6 +24,7 @@ const rpc = BrowserView.defineRPC<PinboardRPC>({
       updateRepo: ({ id, ...data }) => handlers.updateRepo({ id, ...data }),
       deleteRepo: ({ id }) => handlers.deleteRepo({ id }),
       cloneRepo: (input) => handlers.cloneRepo(input),
+      listGitHubRepos: () => handlers.listGitHubRepos(),
 
       // Tickets
       listTickets: (params) => handlers.listTickets(params),

@@ -11,6 +11,9 @@ const WORKTREES_ROOT = getPinboardWorktreesDir();
 
 /** Cross-platform git runner — no shell, works on Windows. */
 function git(args: string[], opts?: { cwd?: string }): { stdout: string; exitCode: number } {
+  if (opts?.cwd && !existsSync(opts.cwd)) {
+    throw new Error(`GIT_FAILED: cwd does not exist — "${opts.cwd}"`);
+  }
   const result = Bun.spawnSync(["git", ...args], { cwd: opts?.cwd });
   return { stdout: result.stdout.toString().trim(), exitCode: result.exitCode };
 }
@@ -33,6 +36,10 @@ export async function createWorktreeForTicket(
   const worktreePath = path.join(WORKTREES_ROOT, repoDirName, slug);
 
   mkdirSync(path.dirname(worktreePath), { recursive: true });
+
+  if (!existsSync(repo.localPath)) {
+    throw new Error(`GIT_FAILED: repo path does not exist — "${repo.localPath}"`);
+  }
 
   // 1. Fetch latest base branch
   git(["fetch", "origin", ticket.baseBranch!], { cwd: repo.localPath });

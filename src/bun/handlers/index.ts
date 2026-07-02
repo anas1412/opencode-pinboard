@@ -15,7 +15,7 @@ import {
 } from "../../paths"
 import path from "path"
 import { z } from "zod"
-import { encryptToken } from "../../shared/gh-runner"
+import { encryptToken, listGitHubRepos as ghListRepos } from "../../shared/gh-runner"
 
 import type {
   Ticket,
@@ -197,7 +197,11 @@ export async function deleteRepo(params: { id: string }): Promise<void> {
   await db.delete(schema.repos).where(eq(schema.repos.id, params.id))
 }
 
-export async function cloneRepo(params: { gitUrl: string; name?: string }): Promise<Repo> {
+export async function listGitHubRepos(): Promise<import("../../shared/types").GitHubRepoInfo[]> {
+  return ghListRepos();
+}
+
+export async function cloneRepo(params: { gitUrl: string; name?: string; ghRepoName?: string }): Promise<Repo> {
   const url = new URL(params.gitUrl)
   const repoName = params.name || path.basename(url.pathname, ".git")
   const dest = `${PINBOARD_REPOS_DIR}/${repoName}`
@@ -207,10 +211,16 @@ export async function cloneRepo(params: { gitUrl: string; name?: string }): Prom
   mkdirSync(PINBOARD_REPOS_DIR, { recursive: true })
 
   try {
-    execSync(`git clone "${params.gitUrl}" "${dest}"`, {
-      stdio: "pipe",
-      timeout: 120000,
-    })
+    if (params.ghRepoName) {
+      // Use gh repo clone for auth-friendly cloning (handles private repos)
+      const clone = Bun.spawnSync(["gh", "repo", "clone", params.ghRepoName, dest]);
+      if (clone.exitCode !== 0) throw new Error(clone.stderr.toString());
+    } else {
+      execSync(`git clone "${params.gitUrl}" "${dest}"`, {
+        stdio: "pipe",
+        timeout: 120000,
+      })
+    }
   } catch (e: any) {
     const msg = e.stderr?.toString() || e.message
     if (msg.includes("Authentication failed") || msg.includes("Permission denied")) {

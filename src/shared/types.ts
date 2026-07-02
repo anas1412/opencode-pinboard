@@ -86,6 +86,21 @@ export interface Session {
   revisionNote: string | null;
 }
 
+// ─── GitHub ────────────────────────────────────────────────────────────
+
+export interface GitHubRepoInfo {
+  name: string;
+  owner: string;
+  description: string | null;
+  isPrivate: boolean;
+  isFork: boolean;
+  url: string;
+  sshUrl: string;
+  defaultBranch: string | null;
+  language: string | null;
+  updatedAt: string;
+}
+
 // ─── Repo ─────────────────────────────────────────────────────────────
 
 export interface Repo {

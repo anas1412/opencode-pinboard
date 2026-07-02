@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCreateRepo } from "../hooks/useRepos";
 import { request } from "../api/rpc-client";
-import { X, Folder, CheckCircle, AlertCircle, Globe } from "lucide-react";
+import { useAppStore } from "../store/app";
+import type { GitHubRepoInfo } from "../../shared/types";
+import { X, Folder, CheckCircle, AlertCircle, Globe, Search, Lock, Loader2, GitFork } from "lucide-react";
 
 const supportsNativePicker = "showDirectoryPicker" in window;
 
-type Mode = "local" | "clone";
+type Mode = "local" | "clone" | "github";
 
 interface AddRepoModalProps {
   open: boolean;
@@ -33,6 +35,54 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
   const [gitUrl, setGitUrl] = useState("");
   const [cloning, setCloning] = useState(false);
 
+  // Browse GitHub state
+  const [ghSearch, setGhSearch] = useState("");
+  const [cloningRepo, setCloningRepo] = useState<string | null>(null);
+
+  const { ghPhase } = useAppStore();
+
+  const ghReposQuery = useQuery({
+    queryKey: ["github-repos"],
+    queryFn: () => request("listGitHubRepos"),
+    enabled: open && mode === "github" && ghPhase === "authed",
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  // Filter repos by search
+  const filteredRepos = useMemo(() => {
+    if (!ghReposQuery.data) return [];
+    if (!ghSearch.trim()) return ghReposQuery.data;
+    const q = ghSearch.toLowerCase();
+    return ghReposQuery.data.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.owner.toLowerCase().includes(q) ||
+        (r.description && r.description.toLowerCase().includes(q)),
+    );
+  }, [ghReposQuery.data, ghSearch]);
+
+  // Clone a repo from the browse list
+  const handleBrowseClone = useCallback(
+    async (repo: GitHubRepoInfo) => {
+      const repoFull = `${repo.owner}/${repo.name}`;
+      setError(null);
+      setCloningRepo(repoFull);
+      try {
+        await request("cloneRepo", {
+          gitUrl: repo.sshUrl,
+          ghRepoName: repoFull,
+        });
+        qc.invalidateQueries({ queryKey: ["repos"] });
+        onClose();
+      } catch (err) {
+        setError((err as Error).message || "Failed to clone repo");
+        setCloningRepo(null);
+      }
+    },
+    [qc, onClose],
+  );
+
   // Reset on open/close
   useEffect(() => {
     if (!open) {
@@ -44,6 +94,8 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
       setIsGitRepo(null);
       setShowManual(false);
       setGitUrl("");
+      setGhSearch("");
+      setCloningRepo(null);
       setMode("local");
     }
   }, [open]);
@@ -185,18 +237,28 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
               <button
                 type="button"
                 onClick={() => setMode("local")}
-                className={`${tabClass("local")} flex items-center justify-center gap-1.5`}
+                className={`${tabClass("local")} flex items-center justify-center gap-1.5 flex-1`}
               >
                 <Folder size={12} />
                 Local folder
               </button>
+              {ghPhase === "authed" && (
+                <button
+                  type="button"
+                  onClick={() => setMode("github")}
+                  className={`${tabClass("github")} flex items-center justify-center gap-1.5 flex-1`}
+                >
+                  <Search size={12} />
+                  Browse GitHub
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setMode("clone")}
-                className={`${tabClass("clone")} flex items-center justify-center gap-1.5`}
+                className={`${tabClass("clone")} flex items-center justify-center gap-1.5 flex-1`}
               >
                 <Globe size={12} />
-                Clone from GitHub
+                Clone URL
               </button>
             </div>
 
@@ -204,7 +266,105 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
               <p className="text-xs text-red-400 bg-red-500/10 rounded-md px-3 py-2 break-words">{error}</p>
             )}
 
-            {mode === "clone" ? (
+            {mode === "github" ? (
+              /* ── Browse GitHub ─────────────────────────── */
+              <div className="space-y-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={ghSearch}
+                    onChange={(e) => setGhSearch(e.target.value)}
+                    placeholder="Search your repos..."
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-md pl-8 pr-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Loading state */}
+                {ghReposQuery.isLoading && (
+                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading repos...
+                  </div>
+                )}
+
+                {/* Error state */}
+                {ghReposQuery.isError && (
+                  <div className="text-xs text-red-400 bg-red-500/10 rounded-md px-3 py-2">
+                    {ghReposQuery.error instanceof Error
+                      ? ghReposQuery.error.message
+                      : "Failed to load repos"}
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {ghReposQuery.isSuccess && filteredRepos.length === 0 && (
+                  <p className="text-sm text-zinc-600 italic text-center py-8">
+                    {ghSearch.trim()
+                      ? "No repos match your search"
+                      : "No repos found on your GitHub account"}
+                  </p>
+                )}
+
+                {/* Repo list */}
+                {ghReposQuery.isSuccess && filteredRepos.length > 0 && (
+                  <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1 -mr-1">
+                    {filteredRepos.map((repo) => {
+                      const isLoading = cloningRepo === `${repo.owner}/${repo.name}`;
+                      return (
+                        <button
+                          key={`${repo.owner}/${repo.name}`}
+                          type="button"
+                          disabled={isLoading || cloningRepo !== null}
+                          onClick={() => handleBrowseClone(repo)}
+                          className="w-full text-left border border-zinc-800 hover:border-zinc-600 rounded-lg px-3 py-2.5 transition-colors disabled:opacity-60 disabled:cursor-wait group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-white truncate min-w-0">
+                              {repo.owner}/<span className="text-zinc-300">{repo.name}</span>
+                            </span>
+                            {repo.isPrivate && (
+                              <Lock size={10} className="shrink-0 text-zinc-500" />
+                            )}
+                            {repo.isFork && (
+                              <GitFork size={10} className="shrink-0 text-zinc-500" />
+                            )}
+                            {repo.language && (
+                              <span className="ml-auto shrink-0 text-[10px] font-medium text-zinc-500 bg-zinc-800/80 rounded px-1.5 py-0.5">
+                                {repo.language}
+                              </span>
+                            )}
+                            {isLoading && (
+                              <Loader2 size={12} className="shrink-0 text-blue-400 animate-spin" />
+                            )}
+                          </div>
+                          {repo.description && (
+                            <p className="text-xs text-zinc-500 truncate mt-0.5">
+                              {repo.description}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-zinc-600 mt-1">
+                            Updated {relativeTime(repo.updatedAt)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 rounded-md text-sm font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : mode === "clone" ? (
               <>
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">
@@ -362,4 +522,22 @@ export default function AddRepoModal({ open, onClose }: AddRepoModalProps) {
       </div>
     </>
   );
+}
+
+/** Format a GitHub ISO date string as a relative time ("3d ago", "2w ago", etc.) */
+function relativeTime(isoDate: string): string {
+  const now = Date.now();
+  const then = new Date(isoDate).getTime();
+  const diffMs = now - then;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffDay < 1) return "Today";
+  if (diffDay === 1) return "Yesterday";
+  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
+  if (diffDay < 365) return `${Math.floor(diffDay / 30)}mo ago`;
+  return `${Math.floor(diffDay / 365)}y ago`;
 }

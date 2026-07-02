@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db, schema } from "../../db";
 import { repoCreateSchema, repoUpdateSchema } from "../validators";
 import { getPinboardReposDir } from "../../paths";
+import { listGitHubRepos as ghListRepos } from "../../shared/gh-runner";
 
 export function registerRepoRoutes(app: FastifyInstance) {
   // Create repo
@@ -110,10 +111,23 @@ export function registerRepoRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
+  // List authenticated GitHub user's repos
+  app.post("/api/repos/gh-list", async (_req, reply) => {
+    try {
+      const repos = await ghListRepos();
+      return repos;
+    } catch (err: any) {
+      return reply.status(500).send({ error: "GH_LIST_FAILED", message: err.message });
+    }
+  });
+
   // Clone repo from a git URL (GitHub, etc.)
   app.post("/api/repos/clone", async (req, reply) => {
-    const { gitUrl } = z
-      .object({ gitUrl: z.string().min(1, "Git URL is required") })
+    const { gitUrl, ghRepoName } = z
+      .object({
+        gitUrl: z.string().min(1, "Git URL is required"),
+        ghRepoName: z.string().optional(),
+      })
       .parse(req.body);
 
     const repoName = extractRepoName(gitUrl);
@@ -139,9 +153,15 @@ export function registerRepoRoutes(app: FastifyInstance) {
 
     // Clone
     try {
-      app.log.info({ gitUrl, cloneDest }, "Cloning repo");
-      const clone = Bun.spawnSync(["git", "clone", "--depth", "1", gitUrl, cloneDest]);
-      if (clone.exitCode !== 0) throw new Error(clone.stderr.toString());
+      app.log.info({ gitUrl, cloneDest, ghRepoName }, "Cloning repo");
+      if (ghRepoName) {
+        // Use gh repo clone for authenticated cloning (handles private repos)
+        const clone = Bun.spawnSync(["gh", "repo", "clone", ghRepoName, cloneDest]);
+        if (clone.exitCode !== 0) throw new Error(clone.stderr.toString());
+      } else {
+        const clone = Bun.spawnSync(["git", "clone", "--depth", "1", gitUrl, cloneDest]);
+        if (clone.exitCode !== 0) throw new Error(clone.stderr.toString());
+      }
     } catch (err) {
       const stderr = (err as { stderr?: string }).stderr || "";
 

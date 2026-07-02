@@ -10,6 +10,7 @@ import type {
   Settings,
   SettingsUpdateInput,
   CostSummary,
+  GitHubRepoInfo,
   OpencodeConfig,
   OpencodeTuiConfig,
   AgentEntry,
@@ -35,7 +36,8 @@ export type PinboardRPC = {
       createRepo: { params: RepoCreateInput; response: Repo }
       updateRepo: { params: { id: string } & RepoUpdateInput; response: Repo }
       deleteRepo: { params: { id: string }; response: void }
-      cloneRepo: { params: { gitUrl: string; name?: string }; response: Repo }
+      cloneRepo: { params: { gitUrl: string; name?: string; ghRepoName?: string }; response: Repo }
+      listGitHubRepos: { params: void; response: GitHubRepoInfo[] }
 
       // ─── Tickets ────────────────────────────────────────────
       listTickets: {

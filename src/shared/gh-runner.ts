@@ -314,6 +314,53 @@ export async function testGhConnection(): Promise<GhTestResult> {
   return { ok: true, user: userInfo };
 }
 
+// ─── List GitHub Repos ───────────────────────────────────────────────────
+
+export interface GitHubRepoInfo {
+  name: string;
+  owner: string;
+  description: string | null;
+  isPrivate: boolean;
+  isFork: boolean;
+  url: string;
+  sshUrl: string;
+  defaultBranch: string | null;
+  language: string | null;
+  updatedAt: string;
+}
+
+/**
+ * List repos for the authenticated GitHub user.
+ * Calls `gh repo list` with JSON output.
+ */
+export async function listGitHubRepos(): Promise<GitHubRepoInfo[]> {
+  const result = await runGh({
+    args: [
+      "repo", "list",
+      "--json", "name,owner,description,isPrivate,isFork,url,sshUrl,defaultBranchRef,primaryLanguage,updatedAt",
+      "--limit", "200",
+    ],
+  });
+
+  if (result.exitCode !== 0) {
+    throw new Error(`gh repo list failed: ${result.stderr}`);
+  }
+
+  const repos = JSON.parse(result.stdout);
+  return repos.map((r: any) => ({
+    name: r.name,
+    owner: r.owner?.login || "",
+    description: r.description ?? null,
+    isPrivate: r.isPrivate ?? false,
+    isFork: r.isFork ?? false,
+    url: r.url ?? "",
+    sshUrl: r.sshUrl ?? "",
+    defaultBranch: r.defaultBranchRef?.name ?? null,
+    language: r.primaryLanguage?.name ?? null,
+    updatedAt: r.updatedAt ?? "",
+  }));
+}
+
 // ─── OAuth Device Flow ──────────────────────────────────────────────────
 
 /**
