@@ -64,19 +64,27 @@ async function healRepoPath(repo: Repo): Promise<string | null> {
 }
 
 /**
- * Look for an existing worktree by slug under any candidate directory.
- * Checks both the current repo name and repo ID as fallback.
+ * Look for an existing worktree by slug.
+ * Checks: current repo name, repo ID, then all subdirs of WORKTREES_ROOT.
  */
 export async function healWorktreePath(repo: Repo, slug: string): Promise<string | null> {
-  const candidates = [
+  // Fast checks: current name and repo ID
+  const fast = [
     path.join(WORKTREES_ROOT, repo.name.replace(/[^a-zA-Z0-9_-]/g, "-"), slug),
     path.join(WORKTREES_ROOT, repo.id, slug),
   ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && existsSync(path.join(candidate, ".git"))) {
-      return candidate;
-    }
+  for (const c of fast) {
+    if (existsSync(c) && existsSync(path.join(c, ".git"))) return c;
   }
+  // Fallback: scan all subdirs (catches renames)
+  try {
+    const entries = readdirSync(WORKTREES_ROOT, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const candidate = path.join(WORKTREES_ROOT, entry.name, slug);
+      if (existsSync(candidate) && existsSync(path.join(candidate, ".git"))) return candidate;
+    }
+  } catch {}
   return null;
 }
 

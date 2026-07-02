@@ -62,7 +62,15 @@ export async function startSessionServer(sessionId: string, repoPath: string): P
   // Clean up dead entry
   if (existing) servers.delete(sessionId);
 
+  if (!existsSync(repoPath)) {
+    throw new Error(`START_SESSION_FAILED: cwd does not exist — "${repoPath}"`);
+  }
+
   const opencodeBin = resolveOpencodeBinary();
+  if (!existsSync(opencodeBin)) {
+    throw new Error(`START_SESSION_FAILED: opencode binary not found at resolved path — "${opencodeBin}"`);
+  }
+
   return new Promise((resolve, reject) => {
     const proc = spawn(opencodeBin, ["serve", "--port", "0"], {
       stdio: ["ignore", "pipe", "pipe"],
