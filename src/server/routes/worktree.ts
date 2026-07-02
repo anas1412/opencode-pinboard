@@ -1,11 +1,12 @@
-import { existsSync, mkdirSync, rmSync } from "fs";
+import { existsSync, mkdirSync, rmSync, readdirSync } from "fs";
 import path from "path";
+import { homedir } from "os";
 import type { FastifyInstance } from "fastify";
 import { eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "../../db";
 import { stopSessionServer } from "../opencode-manager";
-import { getPinboardWorktreesDir } from "../../paths";
+import { getPinboardWorktreesDir, getPinboardReposDir } from "../../paths";
 
 const WORKTREES_ROOT = getPinboardWorktreesDir();
 
@@ -22,6 +23,64 @@ type Ticket = typeof schema.tickets.$inferSelect;
 type Repo = typeof schema.repos.$inferSelect;
 
 /**
+ * Scan common directories for a repo by name.
+ * Checks up to depth 3, skips hidden dirs and node_modules.
+ */
+function scanForRepo(name: string, root: string, depth = 0): string | null {
+  if (depth > 3) return null;
+  try {
+    const entries = readdirSync(root, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const fullPath = path.join(root, entry.name);
+      if (entry.name === name && existsSync(path.join(fullPath, ".git"))) {
+        return fullPath;
+      }
+      const found = scanForRepo(name, fullPath, depth + 1);
+      if (found) return found;
+    }
+  } catch {}
+  return null;
+}
+
+/** Try to find a repo that moved, update DB and return the new path. */
+async function healRepoPath(repo: Repo): Promise<string | null> {
+  const scanned = new Set<string>();
+  const dirs = [
+    homedir(),
+    getPinboardReposDir(),
+  ];
+  for (const dir of dirs) {
+    if (!dir || scanned.has(dir)) continue;
+    scanned.add(dir);
+    if (!existsSync(dir)) continue;
+    const found = scanForRepo(repo.name, dir);
+    if (found) {
+      await db.update(schema.repos).set({ localPath: found }).where(eq(schema.repos.id, repo.id));
+      return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Look for an existing worktree by slug under any candidate directory.
+ * Checks both the current repo name and repo ID as fallback.
+ */
+export async function healWorktreePath(repo: Repo, slug: string): Promise<string | null> {
+  const candidates = [
+    path.join(WORKTREES_ROOT, repo.name.replace(/[^a-zA-Z0-9_-]/g, "-"), slug),
+    path.join(WORKTREES_ROOT, repo.id, slug),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate) && existsSync(path.join(candidate, ".git"))) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
  * Create a git branch + worktree for a ticket. Throws on failure.
  * Returns the worktree path that was created.
  */
@@ -35,10 +94,24 @@ export async function createWorktreeForTicket(
   const slug = branchName.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
   const worktreePath = path.join(WORKTREES_ROOT, repoDirName, slug);
 
+  // Check if worktree already exists under name or ID path
+  const healed = await healWorktreePath(repo, slug);
+  if (healed) {
+    await db.update(schema.tickets).set({ worktreePath: healed, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id));
+    log?.info?.({ ticketId: ticket.id, branchName, worktreePath: healed }, "Worktree re-linked (healed)");
+    return healed;
+  }
+
   mkdirSync(path.dirname(worktreePath), { recursive: true });
 
   if (!existsSync(repo.localPath)) {
-    throw new Error(`GIT_FAILED: repo path does not exist — "${repo.localPath}"`);
+    const healed = await healRepoPath(repo);
+    if (healed) {
+      log?.info?.({ repoId: repo.id, oldPath: repo.localPath, newPath: healed }, "Repo path healed");
+      repo.localPath = healed;
+    } else {
+      throw new Error(`GIT_FAILED: repo path does not exist — "${repo.localPath}". Auto-scan also found nothing. Move the repo back there or update it in Settings.`);
+    }
   }
 
   // 1. Fetch latest base branch

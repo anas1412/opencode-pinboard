@@ -64,7 +64,7 @@ import { createSdkClient, getGlobalConfig } from "../../shared/opencode-client"
 import { dailyCostHistory, aggregateOpencodeSessionsSince, getSingleSessionCost, queryOpencodeSessionsSince, enrichSessions, normalizeModel } from "../../shared/opencode-db"
 import { sendToSession, generateAndSendImprovedPrompt } from "../../shared/prompt-improver"
 import { finalizeSessionCost, markSessionEnded, findOrCreateTicketSessionRow } from "../../shared/session-lifecycle"
-import { createWorktreeForTicket } from "../../server/routes/worktree"
+import { createWorktreeForTicket, healWorktreePath } from "../../server/routes/worktree"
 import { computeChangedFiles } from "../../server/routes/ticket"
 import { emitSse } from "../../server/sse"
 
@@ -742,8 +742,16 @@ export async function createSession(params: { ticketId: string }) {
   if (ticket.worktreePath && existsSync(ticket.worktreePath)) {
     sessionCwd = ticket.worktreePath
   } else if (ticket.worktreePath) {
-    await db.update(schema.tickets).set({ worktreePath: null, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id))
-    sessionCwd = await createWorktreeForTicket(ticket, repo)
+    // Stale path — try to heal before recreating
+    const slug = ticket.branch.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
+    const healed = await healWorktreePath(repo, slug);
+    if (healed) {
+      await db.update(schema.tickets).set({ worktreePath: healed, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id));
+      sessionCwd = healed;
+    } else {
+      await db.update(schema.tickets).set({ worktreePath: null, updatedAt: Date.now() }).where(eq(schema.tickets.id, ticket.id))
+      sessionCwd = await createWorktreeForTicket(ticket, repo)
+    }
   } else {
     sessionCwd = await createWorktreeForTicket(ticket, repo)
   }
