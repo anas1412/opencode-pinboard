@@ -25,6 +25,7 @@ import SplitView from "./components/SplitView";
 import TicketCreate from "./components/TicketCreate";
 import JournalView from "./components/JournalView";
 import ChatView from "./components/ChatView";
+import { AskView } from "./components/AskView";
 
 // ─── Search param schema ─────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ function ContentLayout() {
   const [creatingChat, setCreatingChat] = useState(false);
 
   // Full-height routes (ticket detail, chat) get no padding — they fill the whole area
-  const isFullHeight = pathname.startsWith("/tickets/") || pathname.startsWith("/chat/");
+  const isFullHeight = pathname.startsWith("/tickets/") || pathname.startsWith("/chat/") || pathname === "/ask";
 
   const handleNewChat = () => {
     if (!repos || repos.length === 0) return;
@@ -273,6 +274,12 @@ const chatRoute = createRoute({
   component: ChatView,
 });
 
+const askRoute = createRoute({
+  getParentRoute: () => contentLayout,
+  path: "/ask",
+  component: AskView,
+});
+
 // Redirect /index.html → / (Electrobun loads the SPA at index.html path)
 const indexHtmlFallback = createRoute({
   getParentRoute: () => contentLayout,
@@ -287,7 +294,7 @@ const indexHtmlFallback = createRoute({
 // Every route lives under contentLayout so the header (tabs + actions)
 // is present on every page — including future routes added here.
 const routeTree = rootRoute.addChildren([
-  contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute, settingsRoute, settingsGithubRoute, usageRoute, ticketRoute, chatRoute, indexHtmlFallback]),
+  contentLayout.addChildren([indexRoute, ticketsRoute, journalRoute, settingsRoute, settingsGithubRoute, usageRoute, ticketRoute, chatRoute, askRoute, indexHtmlFallback]),
 ]);
 
 const router = createRouter({ routeTree });

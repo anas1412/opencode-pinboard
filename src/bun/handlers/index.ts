@@ -1032,6 +1032,84 @@ export async function getChat(params: { id: string }): Promise<Session> {
   return parseSessionRow(row[0])
 }
 
+// ─── Ask (app-aware chat) ──────────────────────────────────────────────
+
+// Shared opencode server for all Ask conversations — started on first use
+const ASK_SERVER_ID = "__ask__"
+let askServerCwd: string | null = null
+
+async function ensureAskServer(): Promise<{ port: number; cwd: string }> {
+  if (askServerCwd) {
+    const port = getSessionPort(ASK_SERVER_ID)
+    if (port) return { port, cwd: askServerCwd }
+  }
+
+  // Resolve cwd from the first repo
+  const [repo] = await db.select().from(schema.repos).limit(1)
+  if (!repo) throw new Error("No repos found — add a repo first")
+  askServerCwd = repo.localPath
+
+  const port = await startSessionServer(ASK_SERVER_ID, askServerCwd)
+  return { port, cwd: askServerCwd }
+}
+
+export async function createAskChat(): Promise<{ id: string; opencodePort: number; cwd: string; opencodeSessionId: string }> {
+  const { port, cwd } = await ensureAskServer()
+  const now = Date.now()
+
+  // Create opencode session
+  const opencodeSessionId = await createOpencodeSession(port, cwd, "", 1)
+
+  // Insert session row
+  const id = generateId()
+  const chatName = `Ask · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+  await db.insert(schema.sessions).values({
+    id,
+    ticketId: "__ask__",
+    opencodeVersion: "",
+    model: "",
+    cwd,
+    branch: "",
+    initialPrompt: chatName,
+    opencodeSessionId,
+    transcript: toJsonField([]),
+    diff: toJsonField([]),
+    filesChanged: toJsonField([]),
+    exitCode: null,
+    exitReason: null,
+    createdAt: now,
+    endedAt: null,
+    durationMs: null,
+    approved: null,
+    revisionNote: null,
+    pid: null,
+    serverPort: port,
+  })
+
+  emitSse({ type: "session.started", sessionId: id, ticketId: null })
+  return { id, opencodePort: port, cwd, opencodeSessionId }
+}
+
+export async function listAskChats(): Promise<Array<{ id: string; name: string; createdAt: number; opencodeSessionId: string }>> {
+  const rows = await db
+    .select()
+    .from(schema.sessions)
+    .where(eq(schema.sessions.ticketId, "__ask__"))
+    .orderBy(desc(schema.sessions.createdAt))
+  return rows.map((r) => ({ id: r.id, name: r.initialPrompt || r.id.slice(0, 8), createdAt: r.createdAt, opencodeSessionId: r.opencodeSessionId ?? "" }))
+}
+
+export async function renameAskChat(params: { id: string; name: string }): Promise<void> {
+  await db
+    .update(schema.sessions)
+    .set({ initialPrompt: params.name })
+    .where(eq(schema.sessions.id, params.id))
+}
+
+export async function deleteAskChat(params: { id: string }): Promise<void> {
+  await db.delete(schema.sessions).where(eq(schema.sessions.id, params.id))
+}
+
 // ─── Costs ─────────────────────────────────────────────────────────────
 
 /** Find a port for any active opencode server by scanning Pinboard's sessions table. */

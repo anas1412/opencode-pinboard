@@ -192,4 +192,80 @@ export function registerChatRoutes(app: FastifyInstance) {
 
     return reply.status(204).send();
   });
+
+  // ─── Ask (app-aware chat) ──────────────────────────────────────────────
+
+  // Shared ask server — lazily started
+  let askPort: number | null = null;
+  let askCwd: string | null = null;
+
+  async function ensureAskServerRoute(): Promise<{ port: number; cwd: string }> {
+    if (askPort && askCwd) {
+      const existing = getSessionPort("__ask__");
+      if (existing) return { port: existing, cwd: askCwd };
+    }
+    const [repo] = await db.select().from(schema.repos).limit(1);
+    if (!repo) throw new Error("No repos found");
+    askCwd = repo.localPath;
+    askPort = await startSessionServer("__ask__", askCwd);
+    return { port: askPort, cwd: askCwd };
+  }
+
+  app.post("/api/ask", async (req, reply) => {
+    try {
+      const { port, cwd } = await ensureAskServerRoute();
+      const now = Date.now();
+      const opencodeSessionId = await createOpencodeChatSession(port, cwd, "");
+      const id = crypto.randomUUID();
+      const chatName = `Ask · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+      await db.insert(schema.sessions).values({
+        id,
+        ticketId: "__ask__",
+        opencodeVersion: "latest",
+        model: "",
+        cwd,
+        branch: "",
+        initialPrompt: chatName,
+        opencodeSessionId,
+        transcript: "[]",
+        diff: "[]",
+        filesChanged: "[]",
+        exitCode: null,
+        exitReason: null,
+        createdAt: now,
+        endedAt: null,
+        durationMs: null,
+        pid: null,
+        serverPort: port,
+        approved: null,
+        revisionNote: null,
+      });
+      return { id, opencodePort: port, cwd, opencodeSessionId };
+    } catch (err) {
+      return reply.status(500).send({ error: "ASK_FAILED", message: err instanceof Error ? err.message : "Unknown error" });
+    }
+  });
+
+  app.get("/api/ask", async () => {
+    const rows = await db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.ticketId, "__ask__"))
+      .orderBy(schema.sessions.createdAt);
+    return rows.map((r) => ({ id: r.id, name: r.initialPrompt || r.id.slice(0, 8), createdAt: r.createdAt, opencodeSessionId: r.opencodeSessionId ?? "" }));
+  });
+
+  app.patch("/api/ask/:id/rename", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = z.object({ name: z.string().min(1) }).parse(req.body);
+    await db.update(schema.sessions).set({ initialPrompt: body.name }).where(eq(schema.sessions.id, id));
+    return reply.status(204).send();
+  });
+
+  app.delete("/api/ask/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await db.delete(schema.sessions).where(eq(schema.sessions.id, id));
+    return reply.status(204).send();
+  });
+
 }

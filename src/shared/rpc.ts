@@ -115,6 +115,23 @@ export type PinboardRPC = {
       listChats: { params: void; response: Session[] }
       getChat: { params: { id: string }; response: Session }
 
+      // ─── Ask (app-aware chat) ───────────────────────────────
+      createAskChat: {
+        params: void
+        response: {
+          id: string
+          opencodePort: number
+          cwd: string
+          opencodeSessionId: string
+        }
+      }
+      listAskChats: {
+        params: void
+        response: Array<{ id: string; name: string; createdAt: number; opencodeSessionId: string }>
+      }
+      renameAskChat: { params: { id: string; name: string }; response: void }
+      deleteAskChat: { params: { id: string }; response: void }
+
       // ─── Costs ──────────────────────────────────────────────
       costSummary: { params: void; response: CostSummary }
       costHistory: { params: void; response: Array<{ date: string; costUsd: number; tokens: number; sessionCount: number }> }

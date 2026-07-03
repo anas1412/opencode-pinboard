@@ -54,6 +54,12 @@ const rpc = BrowserView.defineRPC<PinboardRPC>({
       listChats: () => handlers.listChats(),
       getChat: ({ id }) => handlers.getChat({ id }),
 
+      // Ask
+      createAskChat: () => handlers.createAskChat(),
+      listAskChats: () => handlers.listAskChats(),
+      renameAskChat: (params) => handlers.renameAskChat(params),
+      deleteAskChat: ({ id }) => handlers.deleteAskChat({ id }),
+
       // Costs
       costSummary: () => handlers.costSummary(),
       costHistory: () => handlers.costHistory(),

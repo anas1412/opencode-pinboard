@@ -9,7 +9,7 @@ import { checkUpdates, downloadUpdate } from "../api/version";
 import type { CheckUpdatesResponse } from "../../shared/types";
 import AddRepoModal from "./AddRepoModal";
 import GhSidebarProfile from "./GhSidebarProfile";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Pin, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw, Sparkles } from "lucide-react";
 
 function useUrlRepoId(): string | undefined {
   const search = useSearch({ strict: false }) as Record<string, unknown>;
@@ -83,18 +83,32 @@ export default function Sidebar() {
     <aside className="w-[220px] min-w-[220px] border-r border-zinc-800/60 flex flex-col bg-zinc-950 relative">
       {/* Accent glow line */}
       <div className="absolute top-0 left-0 w-px h-full pointer-events-none" style={{ background: `linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 50%, transparent) 40%, transparent 100%)` }} />
-      <div className="p-4 flex justify-center">
-        <button
-          onClick={() => navigate({ to: "/" })}
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-white transition-colors duration-150 hover:[color:var(--accent-text)]"
-        >
-          <Pin size={18} className="-rotate-45" />
-          Pinboard
-        </button>
-      </div>
+
+      {/* Decorative pin — anchors the glow line */}
+      <div className="absolute pin-sm" style={{ top: "18px", left: "-4px" }} />
 
       {/* Active sessions section — scrollable */}
-      <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0">
+      <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0 pt-6">
+        {/* Ask */}
+        <div className="flex items-center justify-between px-2 py-2">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-1 h-1 rounded-full bg-amber-400" />
+            Ask Pinboard AI
+          </p>
+        </div>
+        <button
+          onClick={() => navigate({ to: "/ask" })}
+          className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors text-left ${
+            pathname === "/ask"
+              ? "text-zinc-200 bg-zinc-800/60"
+              : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+          }`}
+        >
+          <Sparkles size={14} className="shrink-0 text-amber-400" />
+          <span className="truncate flex-1 min-w-0 text-left">AI Assistant</span>
+          <ArrowRight size={12} className="shrink-0 text-zinc-600" />
+        </button>
+
         {/* Active Chats */}
         <div className="flex items-center justify-between px-2 py-2">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
