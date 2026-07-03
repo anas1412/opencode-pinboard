@@ -63,3 +63,28 @@ export async function createOpencodeSession(
   }
   throw new Error("Failed to create opencode session: no response")
 }
+
+/**
+ * Inject a system prompt into an existing opencode session via
+ * POST /session/{id}/message with noReply:true (context only, no AI response).
+ *
+ * @param port - opencode server port
+ * @param sessionId - the opencode session ID
+ * @param system - the system prompt text
+ */
+export async function injectSessionSystemPrompt(port: number, sessionId: string, system: string): Promise<void> {
+  const url = `http://127.0.0.1:${port}/session/${sessionId}/message`
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system,
+      noReply: true,
+      parts: [{ type: "text", text: "" }],
+    }),
+  })
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "unknown")
+    throw new Error(`Failed to inject system prompt: ${resp.status} ${text.slice(0, 200)}`)
+  }
+}

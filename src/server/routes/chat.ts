@@ -5,6 +5,7 @@ import { db, schema } from "../../db";
 import { startSessionServer, stopSessionServer, getSessionPort, getSessionPid } from "../opencode-manager";
 import { finalizeSessionCost, markSessionEnded } from "../../shared/session-lifecycle";
 import { emitSse } from "../sse";
+import { ASK_SYSTEM_PROMPT } from "../../shared/ask-prompt";
 
 async function createOpencodeChatSession(
   port: number,
@@ -216,6 +217,17 @@ export function registerChatRoutes(app: FastifyInstance) {
       const { port, cwd } = await ensureAskServerRoute();
       const now = Date.now();
       const opencodeSessionId = await createOpencodeChatSession(port, cwd, "");
+
+      // Inject system prompt as invisible context (noReply=true so the AI doesn't respond yet)
+      await fetch(`http://127.0.0.1:${port}/session/${opencodeSessionId}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: ASK_SYSTEM_PROMPT,
+          noReply: true,
+          parts: [{ type: "text", text: "" }],
+        }),
+      });
       const id = crypto.randomUUID();
       const chatName = `Ask · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
       await db.insert(schema.sessions).values({

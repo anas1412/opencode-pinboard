@@ -36,7 +36,8 @@ import type {
   DownloadUpdateResponse,
 } from "../../shared/types"
 
-import { createOpencodeSession, parseModel, type OpencodeModel } from "../opencode-session"
+import { ASK_SYSTEM_PROMPT } from "../../shared/ask-prompt"
+import { createOpencodeSession, injectSessionSystemPrompt, parseModel, type OpencodeModel } from "../opencode-session"
 
 import {
   ticketCreateSchema,
@@ -1059,6 +1060,9 @@ export async function createAskChat(): Promise<{ id: string; opencodePort: numbe
 
   // Create opencode session
   const opencodeSessionId = await createOpencodeSession(port, cwd, "", 1)
+
+  // Inject system prompt as invisible context (noReply=true so the AI doesn't respond yet)
+  await injectSessionSystemPrompt(port, opencodeSessionId, ASK_SYSTEM_PROMPT)
 
   // Insert session row
   const id = generateId()
