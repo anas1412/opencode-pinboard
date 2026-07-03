@@ -9,7 +9,7 @@ import { checkUpdates, downloadUpdate } from "../api/version";
 import type { CheckUpdatesResponse } from "../../shared/types";
 import AddRepoModal from "./AddRepoModal";
 import GhSidebarProfile from "./GhSidebarProfile";
-import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw, Sparkles } from "lucide-react";
+import { GitBranch, FolderPlus, Trash2, Layers, ArrowRight, Settings2, Plus, BarChart3, MessageSquare, Loader2, ExternalLink, Download, RotateCcw, Bot } from "lucide-react";
 
 function useUrlRepoId(): string | undefined {
   const search = useSearch({ strict: false }) as Record<string, unknown>;
@@ -84,9 +84,6 @@ export default function Sidebar() {
       {/* Accent glow line */}
       <div className="absolute top-0 left-0 w-px h-full pointer-events-none" style={{ background: `linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 50%, transparent) 40%, transparent 100%)` }} />
 
-      {/* Decorative pin — anchors the glow line */}
-      <div className="absolute pin-sm" style={{ top: "18px", left: "-4px" }} />
-
       {/* Active sessions section — scrollable */}
       <div className="flex-1 px-2 space-y-0.5 overflow-auto min-h-0 pt-6">
         {/* Ask */}
@@ -104,7 +101,7 @@ export default function Sidebar() {
               : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
           }`}
         >
-          <Sparkles size={14} className="shrink-0 text-amber-400" />
+          <Bot size={14} className="shrink-0 text-zinc-400" />
           <span className="truncate flex-1 min-w-0 text-left">AI Assistant</span>
           <ArrowRight size={12} className="shrink-0 text-zinc-600" />
         </button>

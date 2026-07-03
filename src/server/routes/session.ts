@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, not, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { existsSync } from "fs";
@@ -39,7 +39,7 @@ export function registerSessionRoutes(app: FastifyInstance) {
     const reposTicket = alias(schema.repos, "repos_ticket");
     const reposCwd = alias(schema.repos, "repos_cwd");
 
-    const conditions: any[] = [];
+    const conditions: any[] = [not(eq(schema.sessions.ticketId, "__ask__"))];
     if (query.repoId) {
       conditions.push(or(
         eq(schema.tickets.repoId, query.repoId),
