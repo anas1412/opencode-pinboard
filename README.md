@@ -4,7 +4,7 @@
   <img src="./public/OG-preview.png" alt="Pinboard logo" width="800">
 </p>
 
-**Free AI coding agent · tickets · git · PRs — all local, open source.**
+**Free AI coding agent · tickets · git · worktrees · PRs · open source.**
 
 > **Not affiliated with OpenCode.** This project is built by the community, not the OpenCode team. It is not officially endorsed by or associated with [opencode](https://github.com/anomalyco/opencode) or its maintainers.
 

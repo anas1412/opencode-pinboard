@@ -264,11 +264,16 @@ button{ font-family:inherit; cursor:pointer; }
   opacity:0; animation:riseIn .7s var(--ease) forwards; animation-delay:.35s;
 }
 .trust-row{
-  display:flex; flex-wrap:wrap; gap:26px;
+  display:flex; flex-wrap:wrap; gap:10px;
   opacity:0; animation:riseIn .7s var(--ease) forwards; animation-delay:.45s;
 }
-.trust-item{ display:flex; align-items:center; gap:8px; font-size:.86rem; color:var(--smoke); }
-.trust-item .icon{ width:17px; height:17px; color:var(--flare); }
+.trust-item{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:.82rem; color:var(--smoke);
+  background:var(--ink-2); border:1px solid var(--line);
+  padding:6px 14px; border-radius:var(--radius-sm);
+}
+.trust-item .icon{ width:16px; height:16px; color:var(--flare); }
 .trust-item:nth-child(2) .icon{ color:var(--moss); }
 
 @keyframes riseIn{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
@@ -532,7 +537,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
     <div>
       <div class="hero-tag">
         <span class="pin pin--tag"></span>
-        <span class="hero-tag-text">free AI coding agent · tickets · git · PRs — all local</span>
+        <span class="hero-tag-text">free AI coding agent · tickets · git · worktrees · PRs</span>
       </div>
       <h1>Pin it. Track it. <span>Ship it. For free.</span></h1>
       <p class="lede">Pinboard combines AI coding, tickets, git automation, and cost tracking in one desktop app — free, open source, with any LLM provider you choose. Everything runs on your machine.</p>
@@ -545,8 +550,8 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
       <div class="trust-row">
         <span class="trust-item"><svg class="icon"><use href="#i-terminal"/></svg> Free &amp; open source</span>
         <span class="trust-item"><svg class="icon"><use href="#i-bolt"/></svg> Any LLM provider</span>
-        <span class="trust-item"><svg class="icon"><use href="#i-kanban"/></svg> Auto-generated branches + PRs</span>
         <span class="trust-item"><svg class="icon"><use href="#i-lock"/></svg> 100% local &amp; private</span>
+        <span class="trust-item"><svg class="icon"><use href="#i-kanban"/></svg> Auto-generated branches + worktrees + PRs</span>
       </div>
     </div>
 
