@@ -442,6 +442,7 @@ button{ font-family:inherit; cursor:pointer; }
   font-family:var(--font-mono); font-size:.86rem; color:var(--ember);
   overflow-x:auto; white-space:pre;
 }
+.code-block code{ font:inherit; color:inherit; white-space:inherit; }
 .code-block .dim{ color:var(--smoke-dim); }
 .copy-btn{
   position:absolute; top:10px; right:10px;
@@ -738,7 +739,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
       </div>
 
       <div class="qs-panel is-active" data-panel="linux">
-        <div class="code-block" id="code-linux">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh <span class="dim">|</span> bash<button class="copy-btn" data-copy-target="code-linux" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+        <div class="code-block"><code id="code-linux-text">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh <span class="dim">|</span> bash</code><button class="copy-btn" data-copy-target="code-linux-text" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
         <p class="qs-note">One command — installs Pinboard, Bun, and opencode. <a href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener" style="text-decoration:underline">Open source</a> on GitHub.</p>
       </div>
 
