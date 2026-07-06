@@ -436,8 +436,9 @@ button{ font-family:inherit; cursor:pointer; }
 .qs-tab.is-active{ color:var(--flare); border-color:var(--flare); }
 .qs-panel{ display:none; padding:22px; }
 .qs-panel.is-active{ display:block; }
+.code-block-wrap{ position:relative; }
 .code-block{
-  position:relative; background:var(--ink); border:1px solid var(--line-soft);
+  background:var(--ink); border:1px solid var(--line-soft);
   border-radius:9px; padding:18px 50px 18px 18px;
   font-family:var(--font-mono); font-size:.86rem; color:var(--ember);
   overflow-x:auto; white-space:pre;
@@ -739,7 +740,7 @@ footer{ border-top:1px solid var(--line); padding-block:34px; }
       </div>
 
       <div class="qs-panel is-active" data-panel="linux">
-        <div class="code-block"><code id="code-linux-text">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh <span class="dim">|</span> bash</code><button class="copy-btn" data-copy-target="code-linux-text" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
+        <div class="code-block-wrap"><div class="code-block"><code id="code-linux-text">curl -fsSL https://raw.githubusercontent.com/anas1412/opencode-pinboard/main/pinboard.sh <span class="dim">|</span> bash</code></div><button class="copy-btn" data-copy-target="code-linux-text" aria-label="Copy command"><svg class="icon"><use href="#i-copy"/></svg></button></div>
         <p class="qs-note">One command — installs Pinboard, Bun, and opencode. <a href="https://github.com/anas1412/opencode-pinboard" target="_blank" rel="noopener" style="text-decoration:underline">Open source</a> on GitHub.</p>
       </div>
 
