@@ -436,23 +436,21 @@ button{ font-family:inherit; cursor:pointer; }
 .qs-tab.is-active{ color:var(--flare); border-color:var(--flare); }
 .qs-panel{ display:none; padding:22px; }
 .qs-panel.is-active{ display:block; }
-.code-block-wrap{ display:flex; align-items:stretch; }
+.code-block-wrap{ position:relative; }
 .code-block{
-  flex:1; min-width:0;
   background:var(--ink); border:1px solid var(--line-soft);
-  border-right:none; border-radius:9px 0 0 9px;
-  padding:18px;
+  border-radius:9px; padding:18px 50px 18px 18px;
   font-family:var(--font-mono); font-size:.86rem; color:var(--ember);
   overflow-x:auto; white-space:pre;
 }
 .code-block code{ font:inherit; color:inherit; white-space:inherit; }
 .code-block .dim{ color:var(--smoke-dim); }
 .copy-btn{
-  width:36px; flex-shrink:0;
-  border-radius:0 9px 9px 0;
-  background:var(--ink-3); border:1px solid var(--line-soft);
+  position:absolute; top:10px; right:10px;
+  width:30px; height:30px; border-radius:7px;
+  background:var(--ink-3); border:1px solid var(--line);
   color:var(--smoke); display:flex; align-items:center; justify-content:center;
-  cursor:pointer; transition:color .2s, border-color .2s, background .2s;
+  transition:color .2s, border-color .2s;
 }
 .copy-btn:hover{ color:var(--flare); border-color:var(--flare-line); }
 .copy-btn .icon{ width:14px; height:14px; }
